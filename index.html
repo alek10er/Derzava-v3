@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Derzava CDZ - Учебный портал</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-section">
+            <h1>Derzava CDZ</h1>
+            <div class="user-info">
+                <h2 id="welcome-text">Добро пожаловать!</h2>
+                <p class="user-id" id="user-id"></p>
+                <p class="username" id="username"></p>
+            </div>
+            
+            <div class="class-selection" id="class-selection" style="display: none;">
+                <h3>Выберите ваш класс:</h3>
+                <div class="class-buttons">
+                    <button class="class-btn" onclick="selectClass('9а')">9А класс</button>
+                    <button class="class-btn" onclick="selectClass('9и2')">9И2 класс</button>
+                </div>
+            </div>
+            
+            <button class="login-btn" id="login-btn" onclick="handleLogin()">Войти в систему</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
