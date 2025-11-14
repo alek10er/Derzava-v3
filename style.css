@@ -28,6 +28,161 @@ body {
     overflow-x: hidden;
 }
 
+/* Стили для экрана регистрации */
+.registration-screen {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--background) 0%, #16213e 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.registration-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.registration-header {
+    margin-bottom: 2rem;
+}
+
+.registration-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.registration-header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.user-welcome {
+    margin-bottom: 2rem;
+}
+
+.user-avatar-large {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--primary);
+}
+
+.user-avatar-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder-large {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+}
+
+.user-welcome h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.user-tg-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.class-selection {
+    margin-bottom: 2rem;
+}
+
+.class-selection h3 {
+    margin-bottom: 1rem;
+    color: var(--text);
+    font-size: 1.1rem;
+}
+
+.class-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.class-btn {
+    padding: 12px 16px;
+    background: var(--surface-light);
+    border: 2px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.class-btn:hover {
+    background: var(--surface);
+    border-color: var(--primary);
+}
+
+.class-btn.selected {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.complete-registration-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.complete-registration-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.complete-registration-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.registration-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+
+.registration-footer p {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* Главное приложение */
 .app-container {
     max-width: 100%;
     min-height: 100vh;
@@ -357,7 +512,7 @@ body {
 .section-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border);
@@ -366,11 +521,34 @@ body {
 .section-header h2 {
     font-size: 1.4rem;
     color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.section-header i {
+.section-header h2 i {
     color: var(--primary);
     font-size: 1.6rem;
+}
+
+.add-note-btn {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.add-note-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
 /* News Styles */
@@ -425,11 +603,69 @@ body {
     color: var(--text);
 }
 
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.feature-item i {
+    font-size: 1.2rem !important;
+    opacity: 1 !important;
+}
+
+/* Chat Previews */
+.chat-previews {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chat-preview {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--surface-light);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.chat-preview:hover {
+    background: var(--surface);
+}
+
+.chat-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.chat-info h4 {
+    margin-bottom: 0.25rem;
+    color: var(--text);
+}
+
+.chat-info p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
 /* Profile Info */
 .profile-info {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    margin-bottom: 2rem;
 }
 
 .info-item {
@@ -450,238 +686,54 @@ body {
     color: var(--text);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .header {
-        padding: 1rem;
-    }
-    
-    .main-content {
-        padding: 1rem;
-    }
-    
-    .nav-cards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-    }
-    
-    .nav-card {
-        padding: 1rem 0.5rem;
-    }
-    
-    .card-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-    
-    .notifications-panel {
-        width: 95%;
-        right: 2.5%;
-    }
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-@media (max-width: 480px) {
-    .nav-cards {
-        grid-template-columns: 1fr;
-    }
-    
-    .logo {
-        font-size: 1.2rem;
-    }
-    
-    .welcome-section h2 {
-        font-size: 1.5rem;
-    
-    }
-}
-
-.registration-screen {
-    min-height: 100vh;
-    background: linear-gradient(135deg, var(--background) 0%, #16213e 100%);
+.profile-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
-}
-
-.registration-container {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 2rem;
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.registration-header {
-    margin-bottom: 2rem;
-}
-
-.registration-header h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.registration-header p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.user-welcome {
-    margin-bottom: 2rem;
-}
-
-.user-avatar-large {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1rem;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid var(--primary);
-}
-
-.user-avatar-large img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.avatar-placeholder-large {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 2rem;
-}
-
-.user-welcome h2 {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-}
-
-.user-tg-info {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.class-selection {
-    margin-bottom: 2rem;
-}
-
-.class-selection h3 {
-    margin-bottom: 1rem;
-    color: var(--text);
-    font-size: 1.1rem;
-}
-
-.class-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-.class-btn {
+    gap: 0.5rem;
     padding: 12px 16px;
-    background: var(--surface-light);
-    border: 2px solid var(--border);
-    color: var(--text);
+    border: none;
     border-radius: 10px;
     font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.class-btn:hover {
-    background: var(--surface);
-    border-color: var(--primary);
-}
-
-.class-btn.selected {
-    background: rgba(102, 126, 234, 0.2);
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-.complete-registration-btn {
-    width: 100%;
-    padding: 15px;
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-bottom: 1.5rem;
 }
 
-.complete-registration-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+.profile-btn.primary {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: white;
 }
 
-.complete-registration-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
+.profile-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
-.registration-footer {
-    border-top: 1px solid var(--border);
-    padding-top: 1rem;
+.profile-btn.secondary {
+    background: var(--surface-light);
+    color: var(--text);
+    border: 1px solid var(--border);
 }
 
-.registration-footer p {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    line-height: 1.4;
+.profile-btn.secondary:hover {
+    background: var(--surface);
 }
 
-/* Анимация перехода */
-.fade-out {
-    animation: fadeOut 0.5s ease forwards;
+.profile-btn.logout {
+    background: var(--error);
+    color: white;
 }
 
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; display: none; }
+.profile-btn.logout:hover {
+    background: #dc2626;
 }
-
-.fade-in {
-    animation: fadeIn 0.5s ease forwards;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Адаптивность для регистрации */
-@media (max-width: 480px) {
-    .registration-container {
-        padding: 1.5rem;
-        margin: 1rem;
-    }
-    
-    .class-buttons {
-        grid-template-columns: 1fr;
-    }
-    
-    .user-avatar-large {
-        width: 70px;
-        height: 70px;
 
 /* Стили для раздела заметок */
 .notes-controls {
@@ -1054,8 +1106,55 @@ body {
     background: #dc2626;
 }
 
-/* Адаптивность для заметок */
+/* Анимация перехода */
+.fade-out {
+    animation: fadeOut 0.5s ease forwards;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; display: none; }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Адаптивность */
 @media (max-width: 768px) {
+    .header {
+        padding: 1rem;
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .nav-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .nav-card {
+        padding: 1rem 0.5rem;
+    }
+    
+    .card-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .notifications-panel {
+        width: 95%;
+        right: 2.5%;
+    }
+    
     .notes-container {
         grid-template-columns: 1fr;
     }
@@ -1072,6 +1171,50 @@ body {
         width: 95%;
         margin: 1rem;
     }
+    
+    .class-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-avatar-large {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .profile-actions {
+        gap: 0.75rem;
+    }
 }
+
+@media (max-width: 480px) {
+    .nav-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .logo {
+        font-size: 1.2rem;
+    }
+    
+    .welcome-section h2 {
+        font-size: 1.5rem;
+    }
+    
+    .registration-container {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
     }
 }
