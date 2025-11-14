@@ -178,22 +178,22 @@
                         <div class="news-item">
                             <div class="news-date">Сегодня</div>
                             <h4>Запуск нового учебного портала</h4>
-                            <p>Мы рады представить вам обновленную платформу Derzava CDZ с ИИ-помощником и удобным дневником!</p>
+                            <p>Мы рады представить вам обновленную платформу Derzava CDZ с ИИ-помощником и удобным дневником! Теперь все учебные материалы, расписание и общение в одном месте.</p>
                         </div>
                         <div class="news-item">
                             <div class="news-date">Вчера</div>
                             <h4>Школьные соревнования</h4>
-                            <p>На следующей неделе пройдут соревнования по баскетболу между классами. Записывайтесь у классных руководителей.</p>
+                            <p>На следующей неделе пройдут соревнования по баскетболу между классами. Записывайтесь у классных руководителей до пятницы.</p>
                         </div>
                         <div class="news-item">
                             <div class="news-date">2 дня назад</div>
                             <h4>Обновление расписания</h4>
-                            <p>Внесены изменения в расписание на следующую неделю. Проверьте раздел "Расписание".</p>
+                            <p>Внесены изменения в расписание на следующую неделю. Проверьте раздел "Расписание" для ознакомления с актуальной информацией.</p>
                         </div>
                         <div class="news-item">
                             <div class="news-date">3 дня назад</div>
                             <h4>Встреча с выпускниками</h4>
-                            <p>В эту субботу состоится традиционная встреча с выпускниками школы. Приглашаются все желающие.</p>
+                            <p>В эту субботу состоится традиционная встреча с выпускниками школы. Приглашаются все желающие учащихся 9-11 классов.</p>
                         </div>
                     </div>
                 </div>
@@ -207,6 +207,20 @@
                         <i class='bx bx-time-five'></i>
                         <h3>Расписание загружается</h3>
                         <p>Здесь скоро появится ваше расписание уроков</p>
+                        <div class="schedule-features">
+                            <div class="feature-item">
+                                <i class='bx bx-book'></i>
+                                <span>Ежедневное расписание</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-bell'></i>
+                                <span>Уведомления об уроках</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-edit'></i>
+                                <span>Домашние задания</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -269,97 +283,40 @@
                 </div>
 
                 <!-- Заметки -->
-<div class="section-content" id="notes-content">
-    <div class="section-header">
-        <h2><i class='bx bx-note'></i> Заметки</h2>
-        <button class="add-note-btn" onclick="showNoteModal()">
-            <i class='bx bx-plus'></i>
-            Новая заметка
-        </button>
-    </div>
-    
-    <div class="notes-controls">
-        <div class="search-notes">
-            <i class='bx bx-search'></i>
-            <input type="text" id="notesSearch" placeholder="Поиск заметок..." oninput="searchNotes()">
-        </div>
-        <div class="notes-filter">
-            <select id="notesCategoryFilter" onchange="filterNotes()">
-                <option value="all">Все категории</option>
-                <option value="general">Общие</option>
-                <option value="school">Школа</option>
-                <option value="homework">Домашние задания</option>
-                <option value="personal">Личные</option>
-                <option value="ideas">Идеи</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="notes-container" id="notesContainer">
-        <!-- Заметки будут загружаться здесь -->
-        <div class="notes-loading" id="notesLoading">
-            <i class='bx bx-loader-circle bx-spin'></i>
-            <p>Загружаем ваши заметки...</p>
-        </div>
-    </div>
-</div>
-
-<!-- Модальное окно создания/редактирования заметки -->
-<div class="modal" id="noteModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="noteModalTitle">Новая заметка</h3>
-            <button class="close-modal" onclick="closeNoteModal()">
-                <i class='bx bx-x'></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="noteTitle">Заголовок</label>
-                <input type="text" id="noteTitle" placeholder="Введите заголовок..." maxlength="100">
-            </div>
-            <div class="form-group">
-                <label for="noteContent">Содержание</label>
-                <textarea id="noteContent" placeholder="Напишите вашу заметку..." rows="6"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="noteCategory">Категория</label>
-                    <select id="noteCategory">
-                        <option value="general">Общие</option>
-                        <option value="school">Школа</option>
-                        <option value="homework">Домашние задания</option>
-                        <option value="personal">Личные</option>
-                        <option value="ideas">Идеи</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="noteColor">Цвет</label>
-                    <div class="color-picker">
-                        <div class="color-option" data-color="#667eea" style="background: #667eea;" onclick="selectColor('#667eea')"></div>
-                        <div class="color-option" data-color="#4facfe" style="background: #4facfe;" onclick="selectColor('#4facfe')"></div>
-                        <div class="color-option" data-color="#43e97b" style="background: #43e97b;" onclick="selectColor('#43e97b')"></div>
-                        <div class="color-option" data-color="#fa709a" style="background: #fa709a;" onclick="selectColor('#fa709a')"></div>
-                        <div class="color-option" data-color="#ffd166" style="background: #ffd166;" onclick="selectColor('#ffd166')"></div>
+                <div class="section-content" id="notes-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-note'></i> Заметки</h2>
+                        <button class="add-note-btn" onclick="showNoteModal()">
+                            <i class='bx bx-plus'></i>
+                            Новая заметка
+                        </button>
                     </div>
-                    <input type="hidden" id="noteColor" value="#667eea">
+                    
+                    <div class="notes-controls">
+                        <div class="search-notes">
+                            <i class='bx bx-search'></i>
+                            <input type="text" id="notesSearch" placeholder="Поиск заметок..." oninput="searchNotes()">
+                        </div>
+                        <div class="notes-filter">
+                            <select id="notesCategoryFilter" onchange="filterNotes()">
+                                <option value="all">Все категории</option>
+                                <option value="general">Общие</option>
+                                <option value="school">Школа</option>
+                                <option value="homework">Домашние задания</option>
+                                <option value="personal">Личные</option>
+                                <option value="ideas">Идеи</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="notes-container" id="notesContainer">
+                        <!-- Заметки будут загружаться здесь -->
+                        <div class="notes-loading" id="notesLoading">
+                            <i class='bx bx-loader-circle bx-spin'></i>
+                            <p>Загружаем ваши заметки...</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="notePinned">
-                    <span class="checkmark"></span>
-                    Закрепить заметку
-                </label>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="closeNoteModal()">Отмена</button>
-            <button class="btn-primary" id="saveNoteBtn" onclick="saveNote()">Сохранить заметку</button>
-            <button class="btn-danger" id="deleteNoteBtn" onclick="deleteNote()" style="display: none;">Удалить</button>
-        </div>
-    </div>
-</div>
 
                 <!-- Профиль -->
                 <div class="section-content" id="profile-content">
@@ -405,6 +362,63 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Модальное окно создания/редактирования заметки -->
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="noteModalTitle">Новая заметка</h3>
+                <button class="close-modal" onclick="closeNoteModal()">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="noteTitle">Заголовок</label>
+                    <input type="text" id="noteTitle" placeholder="Введите заголовок..." maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="noteContent">Содержание</label>
+                    <textarea id="noteContent" placeholder="Напишите вашу заметку..." rows="6"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="noteCategory">Категория</label>
+                        <select id="noteCategory">
+                            <option value="general">Общие</option>
+                            <option value="school">Школа</option>
+                            <option value="homework">Домашние задания</option>
+                            <option value="personal">Личные</option>
+                            <option value="ideas">Идеи</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="noteColor">Цвет</label>
+                        <div class="color-picker">
+                            <div class="color-option selected" data-color="#667eea" style="background: #667eea;" onclick="selectColor('#667eea')"></div>
+                            <div class="color-option" data-color="#4facfe" style="background: #4facfe;" onclick="selectColor('#4facfe')"></div>
+                            <div class="color-option" data-color="#43e97b" style="background: #43e97b;" onclick="selectColor('#43e97b')"></div>
+                            <div class="color-option" data-color="#fa709a" style="background: #fa709a;" onclick="selectColor('#fa709a')"></div>
+                            <div class="color-option" data-color="#ffd166" style="background: #ffd166;" onclick="selectColor('#ffd166')"></div>
+                        </div>
+                        <input type="hidden" id="noteColor" value="#667eea">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="notePinned">
+                        <span class="checkmark"></span>
+                        Закрепить заметку
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeNoteModal()">Отмена</button>
+                <button class="btn-primary" id="saveNoteBtn" onclick="saveNote()">Сохранить заметку</button>
+                <button class="btn-danger" id="deleteNoteBtn" onclick="deleteNote()" style="display: none;">Удалить</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
