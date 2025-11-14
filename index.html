@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Derzava CDZ</title>
+    <title>Derzava CDZ - Учебный портал</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -11,8 +11,49 @@
     <script src="supabase-config.js"></script>
 </head>
 <body>
-    <!-- Главный контейнер -->
-    <div class="app-container">
+    <!-- Экран регистрации -->
+    <div class="registration-screen" id="registrationScreen">
+        <div class="registration-container">
+            <div class="registration-header">
+                <h1>Derzava CDZ</h1>
+                <p>Учебный портал с ИИ-помощником</p>
+            </div>
+            
+            <div class="user-welcome">
+                <div class="user-avatar-large">
+                    <img src="" alt="Avatar" id="regUserAvatar" onerror="this.style.display='none'">
+                    <div class="avatar-placeholder-large" id="regAvatarPlaceholder">
+                        <i class='bx bx-user'></i>
+                    </div>
+                </div>
+                <h2 id="regWelcomeText">Добро пожаловать!</h2>
+                <p class="user-tg-info" id="userTgInfo"></p>
+            </div>
+
+            <div class="class-selection">
+                <h3>Выберите ваш класс:</h3>
+                <div class="class-buttons">
+                    <button class="class-btn" onclick="selectClass('9а')">9А класс</button>
+                    <button class="class-btn" onclick="selectClass('9и2')">9И2 класс</button>
+                    <button class="class-btn" onclick="selectClass('10а')">10А класс</button>
+                    <button class="class-btn" onclick="selectClass('10б')">10Б класс</button>
+                    <button class="class-btn" onclick="selectClass('11а')">11А класс</button>
+                    <button class="class-btn" onclick="selectClass('11б')">11Б класс</button>
+                </div>
+            </div>
+
+            <button class="complete-registration-btn" id="completeRegistrationBtn" onclick="completeRegistration()">
+                Завершить регистрацию
+            </button>
+
+            <div class="registration-footer">
+                <p>После регистрации откроется доступ ко всем функциям платформы</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Главное приложение (скрыто до регистрации) -->
+    <div class="app-container" id="appContainer" style="display: none;">
         
         <!-- Верхняя панель -->
         <header class="header">
@@ -131,23 +172,28 @@
                 <!-- Новости (отображается по умолчанию) -->
                 <div class="section-content active" id="news-content">
                     <div class="section-header">
-                        <h2><i class='bx bx-news'></i> Новости Derzava CDZ</h2>
+                        <h2><i class='bx bx-news'></i> Новости школы</h2>
                     </div>
                     <div class="news-list">
                         <div class="news-item">
                             <div class="news-date">Сегодня</div>
-                            <h4>Поздравляем с каникулами!</h4>
-                            <p>Поздравляем с каникулами! Желаем вам полноценного отдыха, ярких впечатлений и хорошего настроения.</p>
+                            <h4>Запуск нового учебного портала</h4>
+                            <p>Мы рады представить вам обновленную платформу Derzava CDZ с ИИ-помощником и удобным дневником!</p>
                         </div>
                         <div class="news-item">
                             <div class="news-date">Вчера</div>
-                            <h4>ВсОШ по русскому языку.</h4>
-                            <p>✅Основные детали мероприятия, 13 ноября 2025 г., в 12:25, кабинет 242.</p>
+                            <h4>Школьные соревнования</h4>
+                            <p>На следующей неделе пройдут соревнования по баскетболу между классами. Записывайтесь у классных руководителей.</p>
                         </div>
                         <div class="news-item">
                             <div class="news-date">2 дня назад</div>
-                            <h4>Обновление профиля.</h4>
-                            <p>Добавился раздел профиль.</p>
+                            <h4>Обновление расписания</h4>
+                            <p>Внесены изменения в расписание на следующую неделю. Проверьте раздел "Расписание".</p>
+                        </div>
+                        <div class="news-item">
+                            <div class="news-date">3 дня назад</div>
+                            <h4>Встреча с выпускниками</h4>
+                            <p>В эту субботу состоится традиционная встреча с выпускниками школы. Приглашаются все желающие.</p>
                         </div>
                     </div>
                 </div>
@@ -173,6 +219,20 @@
                         <i class='bx bx-robot'></i>
                         <h3>ИИ-помощник</h3>
                         <p>Ваш умный помощник в учебе скоро будет доступен</p>
+                        <div class="ai-features">
+                            <div class="feature-item">
+                                <i class='bx bx-book'></i>
+                                <span>Помощь с домашкой</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-math'></i>
+                                <span>Решение задач</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-chat'></i>
+                                <span>Ответы на вопросы</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -185,6 +245,26 @@
                         <i class='bx bx-chat'></i>
                         <h3>Чат с классом</h3>
                         <p>Общайтесь с одноклассниками и учителями</p>
+                        <div class="chat-previews">
+                            <div class="chat-preview">
+                                <div class="chat-avatar">
+                                    <i class='bx bx-group'></i>
+                                </div>
+                                <div class="chat-info">
+                                    <h4>Общий чат 9А</h4>
+                                    <p>Мария: Кто сделал домашку по физике?</p>
+                                </div>
+                            </div>
+                            <div class="chat-preview">
+                                <div class="chat-avatar">
+                                    <i class='bx bx-user'></i>
+                                </div>
+                                <div class="chat-info">
+                                    <h4>Анна Петрова</h4>
+                                    <p>Привет! Как дела с проектом?</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -197,6 +277,10 @@
                         <i class='bx bx-edit-alt'></i>
                         <h3>Личные заметки</h3>
                         <p>Создавайте и сохраняйте свои записи</p>
+                        <button class="add-note-btn" onclick="createNewNote()">
+                            <i class='bx bx-plus'></i>
+                            Создать заметку
+                        </button>
                     </div>
                 </div>
 
@@ -222,10 +306,27 @@
                             <label>Telegram:</label>
                             <span id="profileUsername">-</span>
                         </div>
+                        <div class="info-item">
+                            <label>Дата регистрации:</label>
+                            <span id="profileRegDate">-</span>
+                        </div>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="profile-btn primary" onclick="editProfile()">
+                            <i class='bx bx-edit'></i>
+                            Редактировать профиль
+                        </button>
+                        <button class="profile-btn secondary" onclick="showSettings()">
+                            <i class='bx bx-cog'></i>
+                            Настройки
+                        </button>
+                        <button class="profile-btn logout" onclick="logout()">
+                            <i class='bx bx-log-out'></i>
+                            Выйти
+                        </button>
                     </div>
                 </div>
             </section>
-
         </main>
     </div>
 
