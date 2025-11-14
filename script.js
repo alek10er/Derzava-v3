@@ -394,12 +394,8 @@ function displayNotes(notesToDisplay) {
         container.innerHTML = `
             <div class="notes-empty">
                 <i class='bx bx-note'></i>
-                <h3>Заметок пока нет</h3>
-                <p>Создайте свою первую заметку!</p>
-                <button class="btn-primary" onclick="showNoteModal()" style="margin-top: 1rem;">
-                    <i class='bx bx-plus'></i>
-                    Создать заметку
-                </button>
+                <h3>Пока нет заметок</h3>
+                <p>Нажмите кнопку "Новая заметка" выше чтобы создать первую</p>
             </div>
         `;
         return;
