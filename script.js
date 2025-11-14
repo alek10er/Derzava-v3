@@ -390,3 +390,375 @@ window.createNewNote = createNewNote;
 // Утилиты для отладки
 window.getCurrentUser = () => currentUserData;
 window.getTelegramUser = () => user;
+
+// Переменные для заметок
+let notes = [];
+let currentEditingNote = null;
+let noteColor = '#667eea';
+
+// Функции для заметок
+async function loadNotes() {
+    if (!user) return;
+    
+    try {
+        showNotesLoading();
+        
+        const { data, error } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('telegram_id', user.id)
+            .order('is_pinned', { ascending: false })
+            .order('updated_at', { ascending: false });
+            
+        if (error) {
+            console.error('Ошибка загрузки заметок:', error);
+            showNotesError('Не удалось загрузить заметки');
+            return;
+        }
+        
+        notes = data || [];
+        displayNotes(notes);
+        
+    } catch (error) {
+        console.error('Ошибка при загрузке заметок:', error);
+        showNotesError('Ошибка при загрузке заметок');
+    }
+}
+
+function displayNotes(notesToDisplay) {
+    const container = document.getElementById('notesContainer');
+    
+    if (!notesToDisplay || notesToDisplay.length === 0) {
+        container.innerHTML = `
+            <div class="notes-empty">
+                <i class='bx bx-note'></i>
+                <h3>Заметок пока нет</h3>
+                <p>Создайте свою первую заметку!</p>
+                <button class="btn-primary" onclick="showNoteModal()" style="margin-top: 1rem;">
+                    <i class='bx bx-plus'></i>
+                    Создать заметку
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = notesToDisplay.map(note => `
+        <div class="note-card ${note.is_pinned ? 'pinned' : ''}" 
+             onclick="editNote(${note.id})"
+             style="border-left-color: ${note.color || '#667eea'}">
+            <div class="note-header">
+                <div>
+                    <div class="note-title">${escapeHtml(note.title)}</div>
+                    <div class="note-category">${getCategoryName(note.category)}</div>
+                </div>
+            </div>
+            <div class="note-content">${escapeHtml(note.content || '')}</div>
+            <div class="note-footer">
+                <span>${formatDate(note.updated_at)}</span>
+                <div class="note-actions">
+                    <button class="note-action-btn" onclick="event.stopPropagation(); togglePinNote(${note.id})" 
+                            title="${note.is_pinned ? 'Открепить' : 'Закрепить'}">
+                        <i class='bx ${note.is_pinned ? 'bxs-pin' : 'bx-pin'}'></i>
+                    </button>
+                    <button class="note-action-btn" onclick="event.stopPropagation(); deleteNote(${note.id})" title="Удалить">
+                        <i class='bx bx-trash'></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showNotesLoading() {
+    const container = document.getElementById('notesContainer');
+    container.innerHTML = `
+        <div class="notes-loading">
+            <i class='bx bx-loader-circle bx-spin'></i>
+            <p>Загружаем ваши заметки...</p>
+        </div>
+    `;
+}
+
+function showNotesError(message) {
+    const container = document.getElementById('notesContainer');
+    container.innerHTML = `
+        <div class="notes-empty">
+            <i class='bx bx-error-circle'></i>
+            <h3>Ошибка загрузки</h3>
+            <p>${message}</p>
+            <button class="btn-primary" onclick="loadNotes()" style="margin-top: 1rem;">
+                <i class='bx bx-refresh'></i>
+                Попробовать снова
+            </button>
+        </div>
+    `;
+}
+
+function showNoteModal(noteId = null) {
+    const modal = document.getElementById('noteModal');
+    const titleInput = document.getElementById('noteModalTitle');
+    const saveBtn = document.getElementById('saveNoteBtn');
+    const deleteBtn = document.getElementById('deleteNoteBtn');
+    
+    currentEditingNote = noteId ? notes.find(n => n.id === noteId) : null;
+    
+    if (currentEditingNote) {
+        // Режим редактирования
+        titleInput.textContent = 'Редактировать заметку';
+        document.getElementById('noteTitle').value = currentEditingNote.title;
+        document.getElementById('noteContent').value = currentEditingNote.content || '';
+        document.getElementById('noteCategory').value = currentEditingNote.category;
+        document.getElementById('notePinned').checked = currentEditingNote.is_pinned;
+        selectColor(currentEditingNote.color || '#667eea');
+        deleteBtn.style.display = 'block';
+    } else {
+        // Режим создания
+        titleInput.textContent = 'Новая заметка';
+        document.getElementById('noteTitle').value = '';
+        document.getElementById('noteContent').value = '';
+        document.getElementById('noteCategory').value = 'general';
+        document.getElementById('notePinned').checked = false;
+        selectColor('#667eea');
+        deleteBtn.style.display = 'none';
+    }
+    
+    modal.classList.add('show');
+}
+
+function closeNoteModal() {
+    const modal = document.getElementById('noteModal');
+    modal.classList.remove('show');
+    currentEditingNote = null;
+}
+
+function selectColor(color) {
+    noteColor = color;
+    const colorOptions = document.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+        option.classList.remove('selected');
+        if (option.dataset.color === color) {
+            option.classList.add('selected');
+        }
+    });
+    document.getElementById('noteColor').value = color;
+}
+
+async function saveNote() {
+    if (!user) {
+        showNotification('Ошибка: пользователь не авторизован');
+        return;
+    }
+    
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value.trim();
+    const category = document.getElementById('noteCategory').value;
+    const isPinned = document.getElementById('notePinned').checked;
+    
+    if (!title) {
+        showNotification('Пожалуйста, введите заголовок заметки');
+        return;
+    }
+    
+    const saveBtn = document.getElementById('saveNoteBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Сохранение...';
+    
+    try {
+        let result;
+        
+        if (currentEditingNote) {
+            // Обновление существующей заметки
+            const { data, error } = await supabase
+                .from('notes')
+                .update({
+                    title: title,
+                    content: content,
+                    category: category,
+                    is_pinned: isPinned,
+                    color: noteColor,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', currentEditingNote.id)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            result = data;
+            
+        } else {
+            // Создание новой заметки
+            const { data, error } = await supabase
+                .from('notes')
+                .insert([{
+                    telegram_id: user.id,
+                    title: title,
+                    content: content,
+                    category: category,
+                    is_pinned: isPinned,
+                    color: noteColor
+                }])
+                .select()
+                .single();
+                
+            if (error) throw error;
+            result = data;
+        }
+        
+        showNotification(currentEditingNote ? 'Заметка обновлена!' : 'Заметка создана!');
+        closeNoteModal();
+        await loadNotes(); // Перезагружаем список заметок
+        
+    } catch (error) {
+        console.error('Ошибка сохранения заметки:', error);
+        showNotification('Ошибка при сохранении заметки');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Сохранить заметку';
+    }
+}
+
+async function deleteNote(noteId = null) {
+    const idToDelete = noteId || currentEditingNote?.id;
+    if (!idToDelete) return;
+    
+    if (!confirm('Вы уверены, что хотите удалить эту заметку?')) {
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('notes')
+            .delete()
+            .eq('id', idToDelete);
+            
+        if (error) throw error;
+        
+        showNotification('Заметка удалена');
+        
+        if (noteId) {
+            // Удаление из списка
+            await loadNotes();
+        } else {
+            // Удаление из модального окна
+            closeNoteModal();
+            await loadNotes();
+        }
+        
+    } catch (error) {
+        console.error('Ошибка удаления заметки:', error);
+        showNotification('Ошибка при удалении заметки');
+    }
+}
+
+async function togglePinNote(noteId) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    
+    try {
+        const { error } = await supabase
+            .from('notes')
+            .update({
+                is_pinned: !note.is_pinned,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', noteId);
+            
+        if (error) throw error;
+        
+        await loadNotes(); // Перезагружаем список
+        
+    } catch (error) {
+        console.error('Ошибка закрепления заметки:', error);
+        showNotification('Ошибка при изменении заметки');
+    }
+}
+
+function editNote(noteId) {
+    showNoteModal(noteId);
+}
+
+function searchNotes() {
+    const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
+    const filteredNotes = notes.filter(note => 
+        note.title.toLowerCase().includes(searchTerm) ||
+        (note.content && note.content.toLowerCase().includes(searchTerm))
+    );
+    displayNotes(filteredNotes);
+}
+
+function filterNotes() {
+    const category = document.getElementById('notesCategoryFilter').value;
+    const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
+    
+    let filteredNotes = notes;
+    
+    if (category !== 'all') {
+        filteredNotes = filteredNotes.filter(note => note.category === category);
+    }
+    
+    if (searchTerm) {
+        filteredNotes = filteredNotes.filter(note => 
+            note.title.toLowerCase().includes(searchTerm) ||
+            (note.content && note.content.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    displayNotes(filteredNotes);
+}
+
+// Вспомогательные функции
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getCategoryName(category) {
+    const categories = {
+        'general': 'Общие',
+        'school': 'Школа',
+        'homework': 'Домашние задания',
+        'personal': 'Личные',
+        'ideas': 'Идеи'
+    };
+    return categories[category] || category;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+        return 'Сегодня';
+    } else if (diffDays === 1) {
+        return 'Вчера';
+    } else if (diffDays < 7) {
+        return `${diffDays} дней назад`;
+    } else {
+        return date.toLocaleDateString('ru-RU');
+    }
+}
+
+// Обновляем функцию showSection для загрузки заметок
+const originalShowSection = window.showSection;
+window.showSection = function(sectionName) {
+    originalShowSection(sectionName);
+    
+    if (sectionName === 'notes') {
+        loadNotes();
+    }
+};
+
+// Добавляем новые функции в глобальную область
+window.showNoteModal = showNoteModal;
+window.closeNoteModal = closeNoteModal;
+window.selectColor = selectColor;
+window.saveNote = saveNote;
+window.deleteNote = deleteNote;
+window.togglePinNote = togglePinNote;
+window.editNote = editNote;
+window.searchNotes = searchNotes;
+window.filterNotes = filterNotes;
