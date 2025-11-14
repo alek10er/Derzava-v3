@@ -4,6 +4,11 @@ let user = null;
 let currentUserData = null;
 let selectedClass = null;
 
+// Переменные для заметок
+let notes = [];
+let currentEditingNote = null;
+let noteColor = '#667eea';
+
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
     initializeTelegramApp();
@@ -305,6 +310,11 @@ function showSection(sectionName) {
         activeSection.classList.add('active');
     }
     
+    // Загружаем данные для определенных разделов
+    if (sectionName === 'notes') {
+        loadNotes();
+    }
+    
     // Закрываем уведомления при переключении секций
     closeNotifications();
 }
@@ -343,60 +353,11 @@ function logout() {
     }
 }
 
-// Функции для заметок
-function createNewNote() {
-    showNotification('Создание заметок будет доступно в следующем обновлении');
-}
+// ==============================
+// СИСТЕМА ЗАМЕТОК
+// ==============================
 
-// Показать уведомление
-function showNotification(message) {
-    // Временное решение - можно заменить на красивый toast
-    alert(message);
-}
-
-// Показать ошибку
-function showError(message) {
-    showNotification(`Ошибка: ${message}`);
-}
-
-// Симуляция пользователя для тестирования
-function simulateTelegramUser() {
-    user = {
-        id: Math.floor(Math.random() * 1000000000),
-        first_name: 'Иван',
-        last_name: 'Тестовый',
-        username: 'test_user',
-        photo_url: ''
-    };
-    
-    console.log('⚠️ Режим тестирования (вне Telegram)');
-    
-    // Для тестирования показываем регистрацию
-    displayRegistrationInfo();
-    showRegistrationScreen();
-}
-
-// Экспортируем функции для глобального использования
-window.selectClass = selectClass;
-window.completeRegistration = completeRegistration;
-window.showSection = showSection;
-window.toggleNotifications = toggleNotifications;
-window.closeNotifications = closeNotifications;
-window.editProfile = editProfile;
-window.showSettings = showSettings;
-window.logout = logout;
-window.createNewNote = createNewNote;
-
-// Утилиты для отладки
-window.getCurrentUser = () => currentUserData;
-window.getTelegramUser = () => user;
-
-// Переменные для заметок
-let notes = [];
-let currentEditingNote = null;
-let noteColor = '#667eea';
-
-// Функции для заметок
+// Загрузка заметок
 async function loadNotes() {
     if (!user) return;
     
@@ -425,6 +386,7 @@ async function loadNotes() {
     }
 }
 
+// Отображение заметок
 function displayNotes(notesToDisplay) {
     const container = document.getElementById('notesContainer');
     
@@ -470,6 +432,7 @@ function displayNotes(notesToDisplay) {
     `).join('');
 }
 
+// Показать загрузку заметок
 function showNotesLoading() {
     const container = document.getElementById('notesContainer');
     container.innerHTML = `
@@ -480,6 +443,7 @@ function showNotesLoading() {
     `;
 }
 
+// Показать ошибку загрузки заметок
 function showNotesError(message) {
     const container = document.getElementById('notesContainer');
     container.innerHTML = `
@@ -495,6 +459,7 @@ function showNotesError(message) {
     `;
 }
 
+// Показать модальное окно заметки
 function showNoteModal(noteId = null) {
     const modal = document.getElementById('noteModal');
     const titleInput = document.getElementById('noteModalTitle');
@@ -526,12 +491,14 @@ function showNoteModal(noteId = null) {
     modal.classList.add('show');
 }
 
+// Закрыть модальное окно заметки
 function closeNoteModal() {
     const modal = document.getElementById('noteModal');
     modal.classList.remove('show');
     currentEditingNote = null;
 }
 
+// Выбор цвета заметки
 function selectColor(color) {
     noteColor = color;
     const colorOptions = document.querySelectorAll('.color-option');
@@ -544,6 +511,7 @@ function selectColor(color) {
     document.getElementById('noteColor').value = color;
 }
 
+// Сохранение заметки
 async function saveNote() {
     if (!user) {
         showNotification('Ошибка: пользователь не авторизован');
@@ -618,6 +586,7 @@ async function saveNote() {
     }
 }
 
+// Удаление заметки
 async function deleteNote(noteId = null) {
     const idToDelete = noteId || currentEditingNote?.id;
     if (!idToDelete) return;
@@ -651,6 +620,7 @@ async function deleteNote(noteId = null) {
     }
 }
 
+// Закрепление/открепление заметки
 async function togglePinNote(noteId) {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
@@ -674,10 +644,12 @@ async function togglePinNote(noteId) {
     }
 }
 
+// Редактирование заметки
 function editNote(noteId) {
     showNoteModal(noteId);
 }
 
+// Поиск заметок
 function searchNotes() {
     const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
     const filteredNotes = notes.filter(note => 
@@ -687,6 +659,7 @@ function searchNotes() {
     displayNotes(filteredNotes);
 }
 
+// Фильтрация заметок
 function filterNotes() {
     const category = document.getElementById('notesCategoryFilter').value;
     const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
@@ -707,13 +680,18 @@ function filterNotes() {
     displayNotes(filteredNotes);
 }
 
-// Вспомогательные функции
+// ==============================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ==============================
+
+// Экранирование HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
+// Получение названия категории
 function getCategoryName(category) {
     const categories = {
         'general': 'Общие',
@@ -725,6 +703,7 @@ function getCategoryName(category) {
     return categories[category] || category;
 }
 
+// Форматирование даты
 function formatDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
@@ -742,17 +721,54 @@ function formatDate(dateString) {
     }
 }
 
-// Обновляем функцию showSection для загрузки заметок
-const originalShowSection = window.showSection;
-window.showSection = function(sectionName) {
-    originalShowSection(sectionName);
-    
-    if (sectionName === 'notes') {
-        loadNotes();
-    }
-};
+// Показать уведомление
+function showNotification(message) {
+    // Временное решение - можно заменить на красивый toast
+    alert(message);
+}
 
-// Добавляем новые функции в глобальную область
+// Показать ошибку
+function showError(message) {
+    showNotification(`Ошибка: ${message}`);
+}
+
+// Симуляция пользователя для тестирования
+function simulateTelegramUser() {
+    user = {
+        id: Math.floor(Math.random() * 1000000000),
+        first_name: 'Иван',
+        last_name: 'Тестовый',
+        username: 'test_user',
+        photo_url: ''
+    };
+    
+    console.log('⚠️ Режим тестирования (вне Telegram)');
+    
+    // Для тестирования показываем регистрацию
+    displayRegistrationInfo();
+    showRegistrationScreen();
+}
+
+// Функция для создания новой заметки (из заглушки)
+function createNewNote() {
+    showNoteModal();
+}
+
+// ==============================
+// ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
+// ==============================
+
+window.selectClass = selectClass;
+window.completeRegistration = completeRegistration;
+window.showSection = showSection;
+window.toggleNotifications = toggleNotifications;
+window.closeNotifications = closeNotifications;
+window.editProfile = editProfile;
+window.showSettings = showSettings;
+window.logout = logout;
+window.createNewNote = createNewNote;
+
+// Функции заметок
 window.showNoteModal = showNoteModal;
 window.closeNoteModal = closeNoteModal;
 window.selectColor = selectColor;
@@ -762,3 +778,8 @@ window.togglePinNote = togglePinNote;
 window.editNote = editNote;
 window.searchNotes = searchNotes;
 window.filterNotes = filterNotes;
+
+// Утилиты для отладки
+window.getCurrentUser = () => currentUserData;
+window.getTelegramUser = () => user;
+window.getNotes = () => notes;
