@@ -13,6 +13,19 @@ let noteColor = '#667eea';
 let nicknameColor = '#667eea';
 let pendingLoginUser = null;
 
+// Переменные для мессенджера
+let currentChat = null;
+let messages = {};
+let contacts = [];
+let messageSubscriptions = {};
+let typingTimer = null;
+let amIActive = false;
+let currentCall = null;
+
+// Переменные для уведомлений
+let notifications = [];
+let notificationSubscription = null;
+
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
     initializeTelegramApp();
@@ -127,8 +140,8 @@ function showRegistrationScreen() {
     const registrationScreen = document.getElementById('registrationScreen');
     const appContainer = document.getElementById('appContainer');
     
-    registrationScreen.style.display = 'flex';
-    appContainer.style.display = 'none';
+    if (registrationScreen) registrationScreen.style.display = 'flex';
+    if (appContainer) appContainer.style.display = 'none';
     
     // Сбрасываем выбор класса
     selectedClass = null;
@@ -141,13 +154,16 @@ function showMainApp() {
     const registrationScreen = document.getElementById('registrationScreen');
     const appContainer = document.getElementById('appContainer');
     
-    registrationScreen.style.display = 'none';
-    appContainer.style.display = 'block';
+    if (registrationScreen) registrationScreen.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'block';
     
     // Инициализируем главное приложение
     setupEventListeners();
     loadMainAppData();
     showSection('news');
+    
+    // Загружаем уведомления
+    loadNotifications();
 }
 
 // Загрузка данных для главного приложения
@@ -157,18 +173,24 @@ function loadMainAppData() {
     const welcomeText = document.getElementById('welcomeText');
     const userClass = document.getElementById('userClass');
     
-    const firstName = currentUserData.first_name || '';
-    const lastName = currentUserData.last_name || '';
-    const fullName = `${firstName} ${lastName}`.trim();
-    
-    welcomeText.textContent = `Добро пожаловать, ${fullName || 'Пользователь'}!`;
-    userClass.textContent = `${currentUserData.class} класс`;
-    
-    // Устанавливаем аватар если есть
-    if (user?.photo_url) {
-        document.getElementById('userAvatar').src = user.photo_url;
-        document.getElementById('userAvatar').style.display = 'block';
-        document.getElementById('avatarPlaceholder').style.display = 'none';
+    if (welcomeText && userClass) {
+        const firstName = currentUserData.first_name || '';
+        const lastName = currentUserData.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        welcomeText.textContent = `Добро пожаловать, ${fullName || 'Пользователь'}!`;
+        userClass.textContent = `${currentUserData.class} класс`;
+        
+        // Устанавливаем аватар если есть
+        if (user?.photo_url) {
+            const userAvatar = document.getElementById('userAvatar');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            if (userAvatar && avatarPlaceholder) {
+                userAvatar.src = user.photo_url;
+                userAvatar.style.display = 'block';
+                avatarPlaceholder.style.display = 'none';
+            }
+        }
     }
 }
 
@@ -194,6 +216,8 @@ function updateClassButtons() {
 // Обновление кнопки регистрации
 function updateRegistrationButton() {
     const regBtn = document.getElementById('completeRegistrationBtn');
+    if (!regBtn) return;
+    
     if (selectedClass) {
         regBtn.disabled = false;
         regBtn.textContent = `Завершить регистрацию в ${selectedClass} классе`;
@@ -203,7 +227,7 @@ function updateRegistrationButton() {
     }
 }
 
-// Завершение регистрации (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// Завершение регистрации
 async function completeRegistration() {
     if (!selectedClass || !user) {
         showNotification('Пожалуйста, выберите класс');
@@ -211,6 +235,8 @@ async function completeRegistration() {
     }
     
     const regBtn = document.getElementById('completeRegistrationBtn');
+    if (!regBtn) return;
+    
     regBtn.disabled = true;
     regBtn.textContent = 'Регистрируем...';
     
@@ -238,20 +264,16 @@ async function completeRegistration() {
                 throw error;
             }
 
-            // Вручную берем первый элемент
             if (data && data.length > 0) {
                 console.log('✅ Данные пользователя обновлены:', data[0]);
                 currentUserData = data[0];
             } else {
-                console.log('⚠️ Данные не возвращены, но ошибки нет');
-                // Обновляем данные вручную
                 const userData = await getUserData(user.id);
                 if (userData) {
                     currentUserData = userData;
                 }
             }
             
-            // Проверяем, требуется ли пароль
             if (currentUserData.account_password) {
                 console.log('🔐 Требуется пароль для существующего аккаунта');
                 regBtn.textContent = '✅ Данные обновлены!';
@@ -261,7 +283,6 @@ async function completeRegistration() {
                 }, 1000);
                 return;
             } else {
-                // Входим без пароля
                 regBtn.textContent = '✅ Регистрация успешна!';
                 setTimeout(() => {
                     showMainApp();
@@ -293,14 +314,12 @@ async function completeRegistration() {
         if (error) {
             console.error('❌ Ошибка регистрации:', error);
             
-            // Если пользователь уже существует (дубликат) - повторная проверка
             if (error.code === '23505') {
                 console.log('ℹ️ Пользователь уже зарегистрирован, загружаем данные...');
                 const existingUserData = await getUserData(user.id);
                 if (existingUserData) {
                     currentUserData = existingUserData;
                     
-                    // Проверяем пароль
                     if (currentUserData.account_password) {
                         showPasswordLogin(currentUserData);
                     } else {
@@ -313,23 +332,18 @@ async function completeRegistration() {
             throw error;
         }
 
-        // Вручную берем первый элемент
         if (data && data.length > 0) {
             console.log('✅ Пользователь успешно зарегистрирован:', data[0]);
             currentUserData = data[0];
         } else {
-            console.log('⚠️ Данные не возвращены, но ошибки нет');
-            // Получаем данные вручную
             const userData = await getUserData(user.id);
             if (userData) {
                 currentUserData = userData;
             }
         }
         
-        // Показываем анимацию успеха
         regBtn.textContent = '✅ Регистрация успешна!';
         
-        // Показываем главное приложение через секунду
         setTimeout(() => {
             showMainApp();
         }, 1000);
@@ -342,17 +356,16 @@ async function completeRegistration() {
     }
 }
 
-// Получение данных пользователя (ОБНОВЛЕННАЯ)
+// Получение данных пользователя
 async function getUserData(telegramId) {
     try {
         console.log('🔍 Ищем пользователя с ID:', telegramId);
         
-        // Убираем .single() и используем .maybeSingle() или обрабатываем массив
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('telegram_id', telegramId)
-            .limit(1); // Используем limit вместо single
+            .limit(1);
             
         if (error) {
             if (error.code === 'PGRST116') {
@@ -363,7 +376,6 @@ async function getUserData(telegramId) {
             return null;
         }
         
-        // Возвращаем первый элемент массива или null
         if (data && data.length > 0) {
             console.log('✅ Пользователь найден:', data[0]);
             return data[0];
@@ -381,7 +393,10 @@ async function getUserData(telegramId) {
 // Настройка обработчиков событий для главного приложения
 function setupEventListeners() {
     // Уведомления
-    document.getElementById('notificationBell').addEventListener('click', toggleNotifications);
+    const notificationBell = document.getElementById('notificationBell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', toggleNotifications);
+    }
     
     // Закрытие уведомлений при клике вне области
     document.addEventListener('click', function(event) {
@@ -394,409 +409,905 @@ function setupEventListeners() {
             }
         }
     });
+    
+    // Мессенджер
+    setupMessengerEventListeners();
 }
 
-// Переключение между секциями
-function showSection(sectionName) {
-    // Скрываем все секции
-    const sections = document.querySelectorAll('.section-content');
-    sections.forEach(section => {
-        section.classList.remove('active');
+// ==============================
+// СИСТЕМА МЕССЕНДЖЕРА
+// ==============================
+
+// Настройка обработчиков событий мессенджера
+function setupMessengerEventListeners() {
+    // Навигация мессенджера
+    const showContactsBtn = document.getElementById('showContactsBtn');
+    const showChatsBtn = document.getElementById('showChatsBtn');
+    const showCallsBtn = document.getElementById('showCallsBtn');
+    
+    if (showContactsBtn) showContactsBtn.addEventListener('click', () => showMessengerSection('contacts'));
+    if (showChatsBtn) showChatsBtn.addEventListener('click', () => showMessengerSection('chats'));
+    if (showCallsBtn) showCallsBtn.addEventListener('click', () => showMessengerSection('calls'));
+    
+    // Поиск пользователей
+    const searchInput = document.getElementById('searchUserInput');
+    if (searchInput) searchInput.addEventListener('input', debounce(searchUsers, 300));
+    
+    // Отправка сообщений
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('input', handleTyping);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+    
+    const sendMessageBtn = document.getElementById('sendMessageBtn');
+    if (sendMessageBtn) sendMessageBtn.addEventListener('click', sendMessage);
+    
+    // Эмодзи
+    const emojiBtn = document.getElementById('emojiBtn');
+    if (emojiBtn) emojiBtn.addEventListener('click', toggleEmojiPicker);
+    
+    // Звонки
+    const callBtn = document.getElementById('callBtn');
+    const acceptCallBtn = document.getElementById('acceptCallBtn');
+    const declineCallBtn = document.getElementById('declineCallBtn');
+    const endCallBtn = document.getElementById('endCallBtn');
+    const closeCallModalBtn = document.getElementById('closeCallModal');
+    const closeIncomingCallModalBtn = document.getElementById('closeIncomingCallModal');
+    
+    if (callBtn) callBtn.addEventListener('click', () => startCall('audio'));
+    if (acceptCallBtn) acceptCallBtn.addEventListener('click', acceptCall);
+    if (declineCallBtn) declineCallBtn.addEventListener('click', declineCall);
+    if (endCallBtn) endCallBtn.addEventListener('click', endCall);
+    if (closeCallModalBtn) closeCallModalBtn.addEventListener('click', closeCallModal);
+    if (closeIncomingCallModalBtn) closeIncomingCallModalBtn.addEventListener('click', closeIncomingCallModal);
+    
+    // Инициализация палитры эмодзи
+    initEmojiPicker();
+}
+
+// Инициализация палитры эмодзи
+function initEmojiPicker() {
+    const emojiPicker = document.getElementById('emojiPicker');
+    if (!emojiPicker) return;
+    
+    const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', 
+                   '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+                   '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔'];
+    
+    emojiPicker.innerHTML = emojis.map(emoji => `
+        <span class="emoji" onclick="insertEmoji('${emoji}')">${emoji}</span>
+    `).join('');
+}
+
+// Показать секцию мессенджера
+function showMessengerSection(section) {
+    const sections = ['contacts', 'chats', 'calls'];
+    sections.forEach(sec => {
+        const content = document.getElementById(sec + 'Content');
+        const btn = document.getElementById('show' + sec.charAt(0).toUpperCase() + sec.slice(1) + 'Btn');
+        
+        if (content) content.style.display = sec === section ? 'block' : 'none';
+        if (btn) btn.classList.toggle('active', sec === section);
     });
     
-    // Показываем выбранную секцию
-    const activeSection = document.getElementById(`${sectionName}-content`);
-    if (activeSection) {
-        activeSection.classList.add('active');
+    if (section === 'contacts') {
+        loadContacts();
+    } else if (section === 'chats') {
+        loadChats();
+    } else if (section === 'calls') {
+        loadCallHistory();
     }
+}
+
+// Загрузка контактов
+async function loadContacts() {
+    try {
+        showMessengerLoading('contactsContent');
+        
+        const { data, error } = await supabase
+            .from('users')
+            .select('telegram_id, first_name, last_name, username, display_name, class, registration_date, display_bio, nickname_color')
+            .neq('telegram_id', user.id)
+            .order('first_name');
+            
+        if (error) throw error;
+        
+        contacts = data || [];
+        displayContacts(contacts);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки контактов:', error);
+        showMessengerError('contactsContent', 'Не удалось загрузить контакты');
+    }
+}
+
+// Отображение контактов
+function displayContacts(contactsToDisplay) {
+    const container = document.getElementById('contactsList');
+    if (!container) return;
     
-    // Загружаем данные для определенных разделов
-    if (sectionName === 'notes') {
-        loadNotes();
-    } else if (sectionName === 'profile') {
-        loadProfileData();
-    }
-    
-    // Закрываем уведомления при переключении секций
-    closeNotifications();
-}
-
-// Управление уведомлениями
-function toggleNotifications() {
-    const panel = document.getElementById('notificationsPanel');
-    if (panel) {
-        panel.classList.toggle('show');
-    }
-}
-
-function closeNotifications() {
-    const panel = document.getElementById('notificationsPanel');
-    if (panel) {
-        panel.classList.remove('show');
-    }
-}
-
-// ==============================
-// СИСТЕМА ПРОФИЛЯ (ИСПРАВЛЕННАЯ)
-// ==============================
-
-// Загрузка данных профиля
-function loadProfileData() {
-    if (!currentUserData) {
-        console.log('❌ Нет данных пользователя для загрузки профиля');
+    if (!contactsToDisplay || contactsToDisplay.length === 0) {
+        container.innerHTML = `
+            <div class="messenger-empty">
+                <i class='bx bx-user-plus'></i>
+                <p>Контакты не найдены</p>
+            </div>
+        `;
         return;
     }
     
-    console.log('📊 Загружаем данные профиля:', currentUserData);
-    
-    // Основная информация
-    document.getElementById('profileTelegramId').textContent = currentUserData.telegram_id || '-';
-    document.getElementById('profileFirstName').textContent = currentUserData.first_name || 'Не указано';
-    document.getElementById('profileLastName').textContent = currentUserData.last_name || 'Не указано';
-    document.getElementById('profileClass').textContent = currentUserData.class || 'Не указан';
-    document.getElementById('profileUsername').textContent = currentUserData.username ? `@${currentUserData.username}` : 'Не указан';
-    
-    // Форматируем дату регистрации
-    if (currentUserData.registration_date) {
-        const regDate = new Date(currentUserData.registration_date);
-        document.getElementById('profileRegDate').textContent = regDate.toLocaleDateString('ru-RU');
-    } else {
-        document.getElementById('profileRegDate').textContent = 'Не указана';
-    }
-    
-    // Загружаем настройки профиля
-    loadProfileSettings();
+    container.innerHTML = contactsToDisplay.map(contact => `
+        <div class="contact-item" onclick="openChat(${contact.telegram_id})">
+            <div class="contact-avatar">
+                <i class='bx bx-user'></i>
+            </div>
+            <div class="contact-info">
+                <h4 style="color: ${contact.nickname_color || '#667eea'}">${getUserDisplayName(contact)}</h4>
+                <span>@${contact.username || 'без username'}</span>
+                <p class="contact-class">${contact.class} класс</p>
+            </div>
+            <div class="contact-action">
+                <i class='bx bx-message'></i>
+            </div>
+        </div>
+    `).join('');
 }
 
-function loadProfileSettings() {
-    console.log('⚙️ Загружаем настройки профиля:', {
-        display_name: currentUserData.display_name,
-        display_bio: currentUserData.display_bio,
-        nickname_color: currentUserData.nickname_color
-    });
-    
-    // Отображаемое имя
-    document.getElementById('displayName').value = currentUserData.display_name || '';
-    
-    // Описание профиля
-    document.getElementById('displayBio').value = currentUserData.display_bio || '';
-    
-    // Цвет ника
-    const savedColor = currentUserData.nickname_color || '#667eea';
-    selectNicknameColor(savedColor);
-}
-
-function selectNicknameColor(color) {
-    nicknameColor = color;
-    const colorOptions = document.querySelectorAll('.color-option-small');
-    colorOptions.forEach(option => {
-        option.classList.remove('selected');
-        if (option.dataset.color === color) {
-            option.classList.add('selected');
+// Открыть чат с пользователем
+async function openChat(userId) {
+    try {
+        // Найти пользователя в контактах или загрузить его профиль
+        currentChat = contacts.find(c => c.telegram_id === userId);
+        if (!currentChat) {
+            currentChat = await getUserProfile(userId);
         }
-    });
-    document.getElementById('nicknameColor').value = color;
+        
+        if (!currentChat) {
+            showNotification('Пользователь не найден');
+            return;
+        }
+        
+        // Показать чат
+        const contactsContent = document.getElementById('contactsContent');
+        const chatWindow = document.getElementById('chatWindow');
+        if (contactsContent && chatWindow) {
+            contactsContent.style.display = 'none';
+            chatWindow.style.display = 'block';
+        }
+        
+        // Обновить информацию о чате
+        const chatPartnerName = document.getElementById('chatPartnerName');
+        const chatPartnerStatus = document.getElementById('chatPartnerStatus');
+        if (chatPartnerName && chatPartnerStatus) {
+            chatPartnerName.textContent = getUserDisplayName(currentChat);
+            chatPartnerName.style.color = currentChat.nickname_color || '#667eea';
+            chatPartnerStatus.textContent = 'В сети';
+        }
+        
+        // Загрузить сообщения
+        await loadMessages(userId);
+        
+        // Подписаться на обновления сообщений
+        subscribeToMessages(userId);
+        
+    } catch (error) {
+        console.error('Ошибка открытия чата:', error);
+        showNotification('Ошибка открытия чата');
+    }
 }
 
-// ИСПРАВЛЕННАЯ функция сохранения настроек профиля
-async function saveProfileSettings() {
-    if (!user || !currentUserData) {
-        showNotification('Ошибка: пользователь не авторизован');
+// Получить профиль пользователя
+async function getUserProfile(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('telegram_id, first_name, last_name, username, display_name, class, registration_date, display_bio, nickname_color')
+            .eq('telegram_id', userId)
+            .maybeSingle();
+            
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Ошибка загрузки профиля:', error);
+        return null;
+    }
+}
+
+// Загрузка сообщений
+async function loadMessages(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${user.id})`)
+            .order('created_at', { ascending: true });
+            
+        if (error) throw error;
+        
+        messages[userId] = data || [];
+        displayMessages(messages[userId]);
+        
+        // Пометить как прочитанные
+        await markMessagesAsRead(userId);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки сообщений:', error);
+    }
+}
+
+// Отображение сообщений
+function displayMessages(messagesToDisplay) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+    
+    if (!messagesToDisplay || messagesToDisplay.length === 0) {
+        container.innerHTML = `
+            <div class="chat-empty">
+                <p>Начните общение</p>
+            </div>
+        `;
         return;
     }
     
-    const displayName = document.getElementById('displayName').value.trim();
-    const displayBio = document.getElementById('displayBio').value.trim();
+    container.innerHTML = messagesToDisplay.map(msg => `
+        <div class="message ${msg.sender_id === user.id ? 'my-message' : 'other-message'}">
+            <div class="message-content">
+                <div class="message-text">${formatMessageText(msg.content)}</div>
+                <div class="message-time">${formatTime(msg.created_at)}</div>
+            </div>
+            <div class="message-status">
+                ${msg.sender_id === user.id ? 
+                    `<i class='bx ${msg.is_read ? 'bx-check-double' : 'bx-check'}'></i>` : 
+                    ''}
+            </div>
+        </div>
+    `).join('');
     
-    console.log('💾 Сохраняем настройки:', { 
-        telegram_id: user.id,
-        displayName, 
-        displayBio, 
-        nicknameColor 
-    });
+    // Прокрутка вниз
+    container.scrollTop = container.scrollHeight;
+}
+
+// Отправка сообщения
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+    
+    const content = input.value.trim();
+    if (!content || !currentChat) return;
     
     try {
-        const updateData = {
-            display_name: displayName || null,
-            display_bio: displayBio || null,
-            nickname_color: nicknameColor,
-            updated_at: new Date().toISOString()
+        const messageData = {
+            sender_id: user.id,
+            receiver_id: currentChat.telegram_id,
+            content: content,
+            created_at: new Date().toISOString(),
+            is_read: false
         };
         
-        console.log('📤 Отправляем данные в Supabase:', updateData);
-        
-        // Убираем .single() чтобы избежать ошибки JSON object
         const { data, error } = await supabase
-            .from('users')
-            .update(updateData)
-            .eq('telegram_id', user.id)
-            .select(); // Убрали .single()
+            .from('messages')
+            .insert([messageData])
+            .select();
             
-        if (error) {
-            console.error('❌ Ошибка сохранения настроек:', error);
-            showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
-            return;
-        }
+        if (error) throw error;
         
-        // Вручную берем первый элемент из массива
         if (data && data.length > 0) {
-            console.log('✅ Настройки сохранены:', data[0]);
-            currentUserData = data[0];
-            showNotification('✅ Настройки профиля сохранены!');
-        } else {
-            console.log('⚠️ Данные не возвращены, но ошибки нет');
-            showNotification('✅ Настройки профиля сохранены!');
-            // Обновляем данные вручную
-            await refreshProfile();
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка при сохранении настроек:', error);
-        showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
-    }
-}
-
-// ИСПРАВЛЕННАЯ функция установки пароля
-async function setAccountPassword() {
-    const password = document.getElementById('accountPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (!password) {
-        showNotification('Введите пароль');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showNotification('Пароли не совпадают');
-        return;
-    }
-    
-    if (password.length < 4) {
-        showNotification('Пароль должен содержать минимум 4 символа');
-        return;
-    }
-    
-    try {
-        console.log('🔐 Устанавливаем пароль для пользователя:', user.id);
-        
-        // Убираем .single() чтобы избежать ошибки JSON object
-        const { data, error } = await supabase
-            .from('users')
-            .update({
-                account_password: password,
-                updated_at: new Date().toISOString()
-            })
-            .eq('telegram_id', user.id)
-            .select(); // Убрали .single()
-            
-        if (error) {
-            console.error('❌ Ошибка установки пароля:', error);
-            showNotification('❌ Ошибка при установке пароля: ' + error.message);
-            return;
-        }
-        
-        // Вручную берем первый элемент из массива
-        if (data && data.length > 0) {
-            console.log('✅ Пароль установлен:', data[0]);
-            currentUserData = data[0];
-        } else {
-            console.log('⚠️ Данные не возвращены, но ошибки нет');
-            // Обновляем данные вручную
-            await refreshProfile();
-        }
-        
-        // Очищаем поля
-        document.getElementById('accountPassword').value = '';
-        document.getElementById('confirmPassword').value = '';
-        
-        showNotification('✅ Пароль успешно установлен!');
-        
-    } catch (error) {
-        console.error('❌ Ошибка при установке пароля:', error);
-        showNotification('❌ Ошибка при установке пароля: ' + error.message);
-    }
-}
-
-// Функция показа модального окна пароля
-async function showPasswordLogin(userData) {
-    pendingLoginUser = userData;
-    const modal = document.getElementById('passwordModal');
-    modal.classList.add('show');
-    
-    // Фокусируемся на поле ввода
-    setTimeout(() => {
-        document.getElementById('loginPassword').focus();
-    }, 100);
-}
-
-// Функция проверки пароля
-async function verifyPassword() {
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!password) {
-        showNotification('Введите пароль');
-        return;
-    }
-    
-    if (!pendingLoginUser) {
-        showNotification('Ошибка: данные пользователя не найдены');
-        return;
-    }
-    
-    console.log('🔐 Проверяем пароль...');
-    
-    // Проверяем пароль
-    if (pendingLoginUser.account_password === password) {
-        console.log('✅ Пароль верный');
-        await completeLogin(pendingLoginUser);
-        closePasswordModal();
-    } else {
-        console.log('❌ Неверный пароль');
-        showNotification('Неверный пароль');
-        document.getElementById('loginPassword').value = '';
-        document.getElementById('loginPassword').focus();
-    }
-}
-
-// Функция завершения входа
-async function completeLogin(userData) {
-    try {
-        console.log('🚀 Завершаем вход пользователя:', userData.telegram_id);
-        
-        // Обновляем статус входа
-        const { error } = await supabase
-            .from('users')
-            .update({
-                is_logged_in: true,
-                last_login: new Date().toISOString()
-            })
-            .eq('telegram_id', userData.telegram_id);
-            
-        if (error) {
-            console.error('❌ Ошибка обновления статуса входа:', error);
-        }
-        
-        currentUserData = userData;
-        showMainApp();
-        
-    } catch (error) {
-        console.error('❌ Ошибка при завершении входа:', error);
-        showMainApp(); // Все равно показываем приложение
-    }
-}
-
-// Закрытие модального окна пароля
-function closePasswordModal() {
-    const modal = document.getElementById('passwordModal');
-    modal.classList.remove('show');
-    document.getElementById('loginPassword').value = '';
-    pendingLoginUser = null;
-}
-
-function cancelLogin() {
-    closePasswordModal();
-    showNotification('Вход отменен');
-    
-    // После отмены входа показываем экран регистрации снова
-    // но сохраняем уже выбранный класс если он был
-    showRegistrationScreen();
-    
-    // Восстанавливаем выбранный класс если он был
-    if (selectedClass) {
-        updateClassButtons();
-        updateRegistrationButton();
-    }
-}
-
-// ИСПРАВЛЕННАЯ функция выхода
-async function logout() {
-    if (!confirm('Вы уверены, что хотите выйти?')) {
-        return;
-    }
-    
-    try {
-        console.log('🚪 Выход из аккаунта...');
-        
-        // Обновляем статус в базе данных
-        if (user && currentUserData) {
-            const { error } = await supabase
-                .from('users')
-                .update({
-                    is_logged_in: false,
-                    last_login: new Date().toISOString()
-                })
-                .eq('telegram_id', user.id);
-                
-            if (error) {
-                console.error('❌ Ошибка обновления статуса выхода:', error);
+            // Добавить сообщение в локальный кеш
+            if (!messages[currentChat.telegram_id]) {
+                messages[currentChat.telegram_id] = [];
             }
+            messages[currentChat.telegram_id].push(data[0]);
+            
+            // Обновить отображение
+            displayMessages(messages[currentChat.telegram_id]);
+            
+            // Очистить поле ввода
+            input.value = '';
+            
+            // Отправить уведомление о наборе текста
+            sendTypingStopped();
+            
+            // Отправить уведомление получателю
+            await sendMessageNotification(currentChat.telegram_id, content);
         }
         
-        // Полностью очищаем данные
-        user = null;
-        currentUserData = null;
-        selectedClass = null;
-        notes = [];
-        
-        console.log('✅ Данные очищены, перезагружаем страницу...');
-        
-        // Показываем сообщение
-        showNotification('Выход выполнен успешно');
-        
-        // Ждем немного и перезагружаем страницу
-        setTimeout(() => {
-            window.location.href = window.location.origin + window.location.pathname;
-        }, 1500);
-        
     } catch (error) {
-        console.error('❌ Ошибка при выходе:', error);
-        // В случае ошибки все равно делаем перезагрузку
-        window.location.reload();
+        console.error('Ошибка отправки сообщения:', error);
+        showNotification('Ошибка отправки сообщения');
     }
 }
 
-// Дополнительные функции профиля
-async function refreshProfile() {
-    if (!user) return;
-    
+// Отправить уведомление о сообщении
+async function sendMessageNotification(receiverId, content) {
     try {
-        console.log('🔄 Обновляем данные профиля...');
-        const userData = await getUserData(user.id);
-        if (userData) {
-            currentUserData = userData;
-            loadProfileData();
-            showNotification('✅ Данные профиля обновлены!');
-        }
+        const notificationData = {
+            user_id: receiverId,
+            type: 'message',
+            title: 'Новое сообщение',
+            content: `${getUserDisplayName(currentUserData)}: ${content.substring(0, 100)}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase
+            .from('notifications')
+            .insert([notificationData]);
+            
+        if (error) console.error('Ошибка отправки уведомления:', error);
+        
     } catch (error) {
-        console.error('❌ Ошибка обновления профиля:', error);
-        showNotification('❌ Ошибка при обновлении данных');
+        console.error('Ошибка отправки уведомления:', error);
     }
 }
 
-function exportData() {
-    if (!currentUserData) return;
+// Подписка на сообщения в реальном времени
+function subscribeToMessages(userId) {
+    // Отписаться от предыдущей подписки
+    if (messageSubscriptions[userId]) {
+        messageSubscriptions[userId].unsubscribe();
+    }
     
-    // Создаем данные для экспорта
-    const exportData = {
-        profile: currentUserData,
-        notes: notes,
-        export_date: new Date().toISOString(),
-        export_from: 'Derzava CDZ'
+    messageSubscriptions[userId] = supabase
+        .channel('messages-' + userId)
+        .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            (payload) => {
+                handleNewMessage(payload.new);
+            }
+        )
+        .subscribe();
+}
+
+// Обработка нового сообщения
+function handleNewMessage(message) {
+    if ((message.sender_id === currentChat?.telegram_id && message.receiver_id === user.id) ||
+        (message.receiver_id === currentChat?.telegram_id && message.sender_id === user.id)) {
+        
+        // Добавить сообщение в кеш
+        if (!messages[currentChat.telegram_id]) {
+            messages[currentChat.telegram_id] = [];
+        }
+        messages[currentChat.telegram_id].push(message);
+        
+        // Обновить отображение
+        displayMessages(messages[currentChat.telegram_id]);
+        
+        // Пометить как прочитанное
+        if (message.sender_id !== user.id) {
+            markMessageAsRead(message.id);
+        }
+        
+        // Показать уведомление если чат не активен
+        if (!amIActive) {
+            showMessageNotification(message);
+        }
+    }
+}
+
+// Показать уведомление о сообщении
+function showMessageNotification(message) {
+    const notification = {
+        id: Date.now(),
+        type: 'message',
+        title: 'Новое сообщение',
+        content: `От: ${getUserDisplayName(currentChat)}`,
+        created_at: new Date().toISOString(),
+        is_read: false
     };
     
-    // Создаем и скачиваем файл
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `derzava_export_${user.id}_${new Date().getTime()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    addNotificationToPanel(notification);
+    updateNotificationBadge();
+}
+
+// Отметить сообщения как прочитанные
+async function markMessagesAsRead(userId) {
+    try {
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('receiver_id', user.id)
+            .eq('sender_id', userId)
+            .eq('is_read', false);
+            
+        if (error) console.error('Ошибка отметки сообщений:', error);
+        
+    } catch (error) {
+        console.error('Ошибка отметки сообщений:', error);
+    }
+}
+
+// Отметить одно сообщение как прочитанное
+async function markMessageAsRead(messageId) {
+    try {
+        const { error } = await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .eq('id', messageId);
+            
+        if (error) console.error('Ошибка отметки сообщения:', error);
+        
+    } catch (error) {
+        console.error('Ошибка отметки сообщения:', error);
+    }
+}
+
+// Поиск пользователей
+async function searchUsers() {
+    const searchInput = document.getElementById('searchUserInput');
+    if (!searchInput) return;
     
-    showNotification('✅ Данные экспортированы!');
+    const searchTerm = searchInput.value.trim();
+    if (!searchTerm) {
+        loadContacts();
+        return;
+    }
+    
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('telegram_id, first_name, last_name, username, display_name, class, registration_date, nickname_color')
+            .or(`username.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%`)
+            .neq('telegram_id', user.id);
+            
+        if (error) throw error;
+        
+        displayContacts(data || []);
+        
+    } catch (error) {
+        console.error('Ошибка поиска пользователей:', error);
+    }
+}
+
+// Загрузка чатов
+async function loadChats() {
+    try {
+        showMessengerLoading('chatsContent');
+        
+        // Получаем пользователей, с которыми есть сообщения
+        const { data, error } = await supabase
+            .from('messages')
+            .select('sender_id, receiver_id, created_at')
+            .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        // Получаем уникальных пользователей
+        const uniqueUserIds = [...new Set(data.flatMap(msg => 
+            [msg.sender_id, msg.receiver_id].filter(id => id !== user.id)
+        ))];
+        
+        // Загружаем информацию о пользователях
+        const usersData = await Promise.all(
+            uniqueUserIds.map(id => getUserProfile(id))
+        );
+        
+        displayContacts(usersData.filter(user => user !== null));
+        
+    } catch (error) {
+        console.error('Ошибка загрузки чатов:', error);
+        showMessengerError('chatsContent', 'Не удалось загрузить чаты');
+    }
+}
+
+// Загрузка истории звонков
+async function loadCallHistory() {
+    try {
+        showMessengerLoading('callsContent');
+        
+        const { data, error } = await supabase
+            .from('calls')
+            .select(`
+                *,
+                caller:users!calls_caller_id_fkey(telegram_id, first_name, last_name, username, display_name, nickname_color),
+                receiver:users!calls_receiver_id_fkey(telegram_id, first_name, last_name, username, display_name, nickname_color)
+            `)
+            .or(`caller_id.eq.${user.id},receiver_id.eq.${user.id}`)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        displayCallHistory(data || []);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки истории звонков:', error);
+        showMessengerError('callsContent', 'Не удалось загрузить историю звонков');
+    }
+}
+
+// Отображение истории звонков
+function displayCallHistory(calls) {
+    const container = document.getElementById('callsList');
+    if (!container) return;
+    
+    if (!calls || calls.length === 0) {
+        container.innerHTML = `
+            <div class="messenger-empty">
+                <i class='bx bx-phone-call'></i>
+                <p>История звонков пуста</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = calls.map(call => {
+        const isOutgoing = call.caller_id === user.id;
+        const partner = isOutgoing ? call.receiver : call.caller;
+        const callTypeIcon = call.call_type === 'video' ? 'bx-video' : 'bx-phone';
+        const callStatus = getCallStatus(call, isOutgoing);
+        
+        return `
+            <div class="call-item" onclick="redial(${partner.telegram_id}, '${call.call_type}')">
+                <div class="call-avatar">
+                    <i class='bx ${callTypeIcon}'></i>
+                </div>
+                <div class="call-info">
+                    <h4 style="color: ${partner.nickname_color || '#667eea'}">${getUserDisplayName(partner)}</h4>
+                    <span class="call-type">${call.call_type === 'video' ? 'Видеозвонок' : 'Голосовой звонок'}</span>
+                    <span class="call-time">${formatDate(call.created_at)}</span>
+                </div>
+                <div class="call-status ${callStatus.replace(' ', '-')}">
+                    <i class='bx ${getCallStatusIcon(callStatus)}'></i>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Переход по звонку
+function redial(userId, callType) {
+    openChat(userId);
+    setTimeout(() => startCall(callType), 500);
+}
+
+// ==============================
+// СИСТЕМА ЗВОНКОВ
+// ==============================
+
+// Начать звонок
+async function startCall(type = 'audio') {
+    if (!currentChat) {
+        showNotification('Выберите собеседника для звонка');
+        return;
+    }
+    
+    try {
+        const callData = {
+            caller_id: user.id,
+            receiver_id: currentChat.telegram_id,
+            call_type: type,
+            status: 'calling',
+            created_at: new Date().toISOString()
+        };
+        
+        const { data, error } = await supabase
+            .from('calls')
+            .insert([callData])
+            .select();
+            
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            currentCall = { id: data[0].id, partner: currentChat, type: type };
+            
+            // Показать окно звонка
+            showCallModal('outgoing', currentChat, data[0].id);
+            
+            // Отправить уведомление о звонке
+            await sendCallNotification(currentChat.telegram_id, data[0].id, type);
+            
+            // Имитация звонка (в реальном приложении здесь был бы WebRTC)
+            simulateCallRing();
+        }
+        
+    } catch (error) {
+        console.error('Ошибка начала звонка:', error);
+        showNotification('Ошибка начала звонка');
+    }
+}
+
+// Имитация звонка
+function simulateCallRing() {
+    setTimeout(() => {
+        if (currentCall) {
+            showNotification('Звонок имитируется (в реальном приложении использовался бы WebRTC)');
+        }
+    }, 2000);
+}
+
+// Принять звонок
+async function acceptCall() {
+    if (!currentCall) return;
+    
+    try {
+        await updateCallStatus('in_progress');
+        
+        // Показать окно активного звонка
+        const incomingCallModal = document.getElementById('incomingCallModal');
+        if (incomingCallModal) incomingCallModal.style.display = 'none';
+        showCallModal('active', currentCall.partner, currentCall.id);
+        
+        showNotification('Звонок принят');
+        
+    } catch (error) {
+        console.error('Ошибка принятия звонка:', error);
+        showNotification('Ошибка принятия звонка');
+    }
+}
+
+// Отклонить звонок
+async function declineCall() {
+    if (!currentCall) return;
+    
+    try {
+        await updateCallStatus('declined');
+        closeIncomingCallModal();
+        showNotification('Звонок отклонен');
+        
+    } catch (error) {
+        console.error('Ошибка отклонения звонка:', error);
+        showNotification('Ошибка отклонения звонка');
+    }
+}
+
+// Завершить звонок
+async function endCall() {
+    if (!currentCall) return;
+    
+    try {
+        await updateCallStatus('ended');
+        closeCallModal();
+        showNotification('Звонок завершен');
+        
+    } catch (error) {
+        console.error('Ошибка завершения звонка:', error);
+        showNotification('Ошибка завершения звонка');
+    }
+}
+
+// Обновить статус звонка
+async function updateCallStatus(status) {
+    if (!currentCall) return;
+    
+    try {
+        const { error } = await supabase
+            .from('calls')
+            .update({ 
+                status: status,
+                ended_at: status === 'ended' || status === 'declined' ? new Date().toISOString() : null
+            })
+            .eq('id', currentCall.id);
+            
+        if (error) throw error;
+        
+    } catch (error) {
+        console.error('Ошибка обновления статуса звонка:', error);
+    }
+}
+
+// Показать модальное окно звонка
+function showCallModal(type, partner, callId) {
+    const modal = document.getElementById('callModal');
+    const statusElement = document.getElementById('callStatus');
+    const partnerElement = document.getElementById('callPartnerName');
+    const typeElement = document.getElementById('callType');
+    
+    if (!modal || !statusElement || !partnerElement || !typeElement) return;
+    
+    if (type === 'outgoing') {
+        statusElement.textContent = 'Вызов...';
+    } else if (type === 'active') {
+        statusElement.textContent = 'Разговор';
+    }
+    
+    partnerElement.textContent = getUserDisplayName(partner);
+    partnerElement.style.color = partner.nickname_color || '#667eea';
+    typeElement.textContent = currentCall.type === 'video' ? 'Видеозвонок' : 'Голосовой звонок';
+    
+    modal.style.display = 'flex';
+}
+
+// Показать входящий звонок
+function showIncomingCall(caller, callId, callType) {
+    currentCall = { id: callId, partner: caller, type: callType };
+    
+    const incomingCallName = document.getElementById('incomingCallName');
+    const incomingCallType = document.getElementById('incomingCallType');
+    const incomingCallModal = document.getElementById('incomingCallModal');
+    
+    if (!incomingCallName || !incomingCallType || !incomingCallModal) return;
+    
+    incomingCallName.textContent = getUserDisplayName(caller);
+    incomingCallName.style.color = caller.nickname_color || '#667eea';
+    incomingCallType.textContent = callType === 'video' ? 'Видеозвонок' : 'Голосовой звонок';
+    incomingCallModal.style.display = 'flex';
+}
+
+// Закрыть модальное окно звонка
+function closeCallModal() {
+    const modal = document.getElementById('callModal');
+    if (modal) modal.style.display = 'none';
+    currentCall = null;
+}
+
+// Закрыть модальное окно входящего звонка
+function closeIncomingCallModal() {
+    const modal = document.getElementById('incomingCallModal');
+    if (modal) modal.style.display = 'none';
+    currentCall = null;
+}
+
+// Отправить уведомление о звонке
+async function sendCallNotification(receiverId, callId, callType) {
+    try {
+        const notificationData = {
+            user_id: receiverId,
+            type: 'call',
+            title: 'Входящий звонок',
+            content: `${getUserDisplayName(currentUserData)} вызывает вас на ${callType === 'video' ? 'видеозвонок' : 'голосовой звонок'}`,
+            is_read: false,
+            related_id: callId,
+            created_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase
+            .from('notifications')
+            .insert([notificationData]);
+            
+        if (error) console.error('Ошибка отправки уведомления о звонке:', error);
+        
+    } catch (error) {
+        console.error('Ошибка отправки уведомления о звонке:', error);
+    }
+}
+
+// ==============================
+// СИСТЕМА УВЕДОМЛЕНИЙ
+// ==============================
+
+// Загрузка уведомлений
+async function loadNotifications() {
+    try {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        notifications = data || [];
+        displayNotifications(notifications);
+        updateNotificationBadge();
+        
+        // Подписка на новые уведомления
+        setupNotificationSubscription();
+        
+    } catch (error) {
+        console.error('Ошибка загрузки уведомлений:', error);
+    }
+}
+
+// Настройка подписки на уведомления
+function setupNotificationSubscription() {
+    if (notificationSubscription) {
+        notificationSubscription.unsubscribe();
+    }
+    
+    notificationSubscription = supabase
+        .channel('notifications')
+        .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+                handleNewNotification(payload.new);
+            }
+        )
+        .subscribe();
+}
+
+// Обработка нового уведомления
+function handleNewNotification(notification) {
+    notifications.unshift(notification);
+    displayNotifications(notifications);
+    updateNotificationBadge();
+    
+    // Показать всплывающее уведомление
+    if (notification.type === 'message') {
+        showNotification(`Новое сообщение: ${notification.content}`);
+    } else if (notification.type === 'call') {
+        // Для звонков показываем специальное окно
+        const caller = contacts.find(c => c.telegram_id === notification.related_id);
+        if (caller) {
+            showIncomingCall(caller, notification.related_id, 'audio');
+        }
+    } else {
+        showNotification(`${notification.title}: ${notification.content}`);
+    }
+}
+
+// Отображение уведомлений
+function displayNotifications(notificationsToDisplay) {
+    const container = document.getElementById('notificationsList');
+    if (!container) return;
+    
+    if (!notificationsToDisplay || notificationsToDisplay.length === 0) {
+        container.innerHTML = `
+            <div class="notification-item">
+                <i class='bx bx-check-circle'></i>
+                <div class="notification-content">
+                    <p>Уведомлений нет</p>
+                    <span>Все уведомления прочитаны</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = notificationsToDisplay.map(notification => `
+        <div class="notification-item ${notification.is_read ? '' : 'new'}" 
+             onclick="markNotificationAsRead(${notification.id})">
+            <i class='bx ${getNotificationIcon(notification.type)}'></i>
+            <div class="notification-content">
+                <p>${notification.title}</p>
+                <span>${formatDate(notification.created_at)}</span>
+                ${notification.content ? `<div class="notification-details">${notification.content}</div>` : ''}
+            </div>
+            ${!notification.is_read ? '<div class="notification-dot"></div>' : ''}
+        </div>
+    `).join('');
+}
+
+// Отметить уведомление как прочитанное
+async function markNotificationAsRead(notificationId) {
+    try {
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', notificationId);
+            
+        if (error) throw error;
+        
+        // Обновить локальные данные
+        const notification = notifications.find(n => n.id === notificationId);
+        if (notification) {
+            notification.is_read = true;
+        }
+        
+        // Обновить отображение
+        displayNotifications(notifications);
+        updateNotificationBadge();
+        
+    } catch (error) {
+        console.error('Ошибка отметки уведомления:', error);
+    }
+}
+
+// Добавить уведомление в панель
+function addNotificationToPanel(notification) {
+    notifications.unshift(notification);
+    displayNotifications(notifications);
+    updateNotificationBadge();
+}
+
+// Обновить бейдж уведомлений
+function updateNotificationBadge() {
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const badge = document.getElementById('notificationBadge');
+    
+    if (!badge) return;
+    
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
 }
 
 // ==============================
@@ -835,6 +1346,7 @@ async function loadNotes() {
 // Отображение заметок
 function displayNotes(notesToDisplay) {
     const container = document.getElementById('notesContainer');
+    if (!container) return;
     
     if (!notesToDisplay || notesToDisplay.length === 0) {
         container.innerHTML = `
@@ -877,6 +1389,8 @@ function displayNotes(notesToDisplay) {
 // Показать загрузку заметок
 function showNotesLoading() {
     const container = document.getElementById('notesContainer');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="notes-loading">
             <i class='bx bx-loader-circle bx-spin'></i>
@@ -888,6 +1402,8 @@ function showNotesLoading() {
 // Показать ошибку загрузки заметок
 function showNotesError(message) {
     const container = document.getElementById('notesContainer');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="notes-empty">
             <i class='bx bx-error-circle'></i>
@@ -907,6 +1423,8 @@ function showNoteModal(noteId = null) {
     const titleInput = document.getElementById('noteModalTitle');
     const saveBtn = document.getElementById('saveNoteBtn');
     const deleteBtn = document.getElementById('deleteNoteBtn');
+    
+    if (!modal || !titleInput || !saveBtn || !deleteBtn) return;
     
     currentEditingNote = noteId ? notes.find(n => n.id === noteId) : null;
     
@@ -936,8 +1454,10 @@ function showNoteModal(noteId = null) {
 // Закрыть модальное окно заметки
 function closeNoteModal() {
     const modal = document.getElementById('noteModal');
-    modal.classList.remove('show');
-    currentEditingNote = null;
+    if (modal) {
+        modal.classList.remove('show');
+        currentEditingNote = null;
+    }
 }
 
 // Выбор цвета заметки
@@ -950,7 +1470,8 @@ function selectColor(color) {
             option.classList.add('selected');
         }
     });
-    document.getElementById('noteColor').value = color;
+    const noteColorInput = document.getElementById('noteColor');
+    if (noteColorInput) noteColorInput.value = color;
 }
 
 // Сохранение заметки
@@ -960,10 +1481,15 @@ async function saveNote() {
         return;
     }
     
-    const title = document.getElementById('noteTitle').value.trim();
-    const content = document.getElementById('noteContent').value.trim();
-    const category = document.getElementById('noteCategory').value;
-    const isPinned = document.getElementById('notePinned').checked;
+    const titleInput = document.getElementById('noteTitle');
+    const contentInput = document.getElementById('noteContent');
+    
+    if (!titleInput || !contentInput) return;
+    
+    const title = titleInput.value.trim();
+    const content = contentInput.value.trim();
+    const category = document.getElementById('noteCategory')?.value || 'general';
+    const isPinned = document.getElementById('notePinned')?.checked || false;
     
     if (!title) {
         showNotification('Пожалуйста, введите заголовок заметки');
@@ -971,6 +1497,8 @@ async function saveNote() {
     }
     
     const saveBtn = document.getElementById('saveNoteBtn');
+    if (!saveBtn) return;
+    
     saveBtn.disabled = true;
     saveBtn.textContent = 'Сохранение...';
     
@@ -1106,7 +1634,7 @@ function editNote(noteId) {
 
 // Поиск заметок
 function searchNotes() {
-    const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
+    const searchTerm = document.getElementById('notesSearch')?.value.toLowerCase() || '';
     const filteredNotes = notes.filter(note => 
         note.title.toLowerCase().includes(searchTerm) ||
         (note.content && note.content.toLowerCase().includes(searchTerm))
@@ -1116,8 +1644,8 @@ function searchNotes() {
 
 // Фильтрация заметок
 function filterNotes() {
-    const category = document.getElementById('notesCategoryFilter').value;
-    const searchTerm = document.getElementById('notesSearch').value.toLowerCase();
+    const category = document.getElementById('notesCategoryFilter')?.value || 'all';
+    const searchTerm = document.getElementById('notesSearch')?.value.toLowerCase() || '';
     
     let filteredNotes = notes;
     
@@ -1136,8 +1664,591 @@ function filterNotes() {
 }
 
 // ==============================
+// СИСТЕМА ПРОФИЛЯ
+// ==============================
+
+// Загрузка данных профиля
+function loadProfileData() {
+    if (!currentUserData) {
+        console.log('❌ Нет данных пользователя для загрузки профиля');
+        return;
+    }
+    
+    console.log('📊 Загружаем данные профиля:', currentUserData);
+    
+    // Основная информация
+    const profileTelegramId = document.getElementById('profileTelegramId');
+    const profileFirstName = document.getElementById('profileFirstName');
+    const profileLastName = document.getElementById('profileLastName');
+    const profileClass = document.getElementById('profileClass');
+    const profileUsername = document.getElementById('profileUsername');
+    const profileRegDate = document.getElementById('profileRegDate');
+    
+    if (profileTelegramId) profileTelegramId.textContent = currentUserData.telegram_id || '-';
+    if (profileFirstName) profileFirstName.textContent = currentUserData.first_name || 'Не указано';
+    if (profileLastName) profileLastName.textContent = currentUserData.last_name || 'Не указано';
+    if (profileClass) profileClass.textContent = currentUserData.class || 'Не указан';
+    if (profileUsername) profileUsername.textContent = currentUserData.username ? `@${currentUserData.username}` : 'Не указан';
+    
+    // Форматируем дату регистрации
+    if (profileRegDate) {
+        if (currentUserData.registration_date) {
+            const regDate = new Date(currentUserData.registration_date);
+            profileRegDate.textContent = regDate.toLocaleDateString('ru-RU');
+        } else {
+            profileRegDate.textContent = 'Не указана';
+        }
+    }
+    
+    // Загружаем настройки профиля
+    loadProfileSettings();
+}
+
+function loadProfileSettings() {
+    const displayName = document.getElementById('displayName');
+    const displayBio = document.getElementById('displayBio');
+    
+    if (displayName) displayName.value = currentUserData.display_name || '';
+    if (displayBio) displayBio.value = currentUserData.display_bio || '';
+    
+    // Цвет ника
+    const savedColor = currentUserData.nickname_color || '#667eea';
+    selectNicknameColor(savedColor);
+}
+
+async function saveProfileSettings() {
+    if (!user || !currentUserData) {
+        showNotification('Ошибка: пользователь не авторизован');
+        return;
+    }
+    
+    const displayName = document.getElementById('displayName')?.value.trim() || '';
+    const displayBio = document.getElementById('displayBio')?.value.trim() || '';
+    
+    console.log('💾 Сохраняем настройки:', { 
+        telegram_id: user.id,
+        displayName, 
+        displayBio, 
+        nicknameColor 
+    });
+    
+    try {
+        const updateData = {
+            display_name: displayName || null,
+            display_bio: displayBio || null,
+            nickname_color: nicknameColor,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('📤 Отправляем данные в Supabase:', updateData);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .update(updateData)
+            .eq('telegram_id', user.id)
+            .select();
+            
+        if (error) {
+            console.error('❌ Ошибка сохранения настроек:', error);
+            showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
+            return;
+        }
+        
+        // Вручную берем первый элемент из массива
+        if (data && data.length > 0) {
+            console.log('✅ Настройки сохранены:', data[0]);
+            currentUserData = data[0];
+            showNotification('✅ Настройки профиля сохранены!');
+        } else {
+            console.log('⚠️ Данные не возвращены, но ошибки нет');
+            showNotification('✅ Настройки профиля сохранены!');
+            // Обновляем данные вручную
+            await refreshProfile();
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка при сохранении настроек:', error);
+        showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
+    }
+}
+
+async function setAccountPassword() {
+    const password = document.getElementById('accountPassword')?.value || '';
+    const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+    
+    if (!password) {
+        showNotification('Введите пароль');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('Пароли не совпадают');
+        return;
+    }
+    
+    if (password.length < 4) {
+        showNotification('Пароль должен содержать минимум 4 символа');
+        return;
+    }
+    
+    try {
+        console.log('🔐 Устанавливаем пароль для пользователя:', user.id);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .update({
+                account_password: password,
+                updated_at: new Date().toISOString()
+            })
+            .eq('telegram_id', user.id)
+            .select();
+            
+        if (error) {
+            console.error('❌ Ошибка установки пароля:', error);
+            showNotification('❌ Ошибка при установке пароля: ' + error.message);
+            return;
+        }
+        
+        // Вручную берем первый элемент из массива
+        if (data && data.length > 0) {
+            console.log('✅ Пароль установлен:', data[0]);
+            currentUserData = data[0];
+        } else {
+            console.log('⚠️ Данные не возвращены, но ошибки нет');
+            // Обновляем данные вручную
+            await refreshProfile();
+        }
+        
+        // Очищаем поля
+        const accountPassword = document.getElementById('accountPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        if (accountPassword) accountPassword.value = '';
+        if (confirmPasswordInput) confirmPasswordInput.value = '';
+        
+        showNotification('✅ Пароль успешно установлен!');
+        
+    } catch (error) {
+        console.error('❌ Ошибка при установке пароля:', error);
+        showNotification('❌ Ошибка при установке пароля: ' + error.message);
+    }
+}
+
+// Функция показа модального окна пароля
+async function showPasswordLogin(userData) {
+    pendingLoginUser = userData;
+    const modal = document.getElementById('passwordModal');
+    if (modal) {
+        modal.classList.add('show');
+        
+        // Фокусируемся на поле ввода
+        setTimeout(() => {
+            const loginPassword = document.getElementById('loginPassword');
+            if (loginPassword) loginPassword.focus();
+        }, 100);
+    }
+}
+
+// Функция проверки пароля
+async function verifyPassword() {
+    const password = document.getElementById('loginPassword')?.value || '';
+    
+    if (!password) {
+        showNotification('Введите пароль');
+        return;
+    }
+    
+    if (!pendingLoginUser) {
+        showNotification('Ошибка: данные пользователя не найдены');
+        return;
+    }
+    
+    console.log('🔐 Проверяем пароль...');
+    
+    // Проверяем пароль
+    if (pendingLoginUser.account_password === password) {
+        console.log('✅ Пароль верный');
+        await completeLogin(pendingLoginUser);
+        closePasswordModal();
+    } else {
+        console.log('❌ Неверный пароль');
+        showNotification('Неверный пароль');
+        const loginPassword = document.getElementById('loginPassword');
+        if (loginPassword) {
+            loginPassword.value = '';
+            loginPassword.focus();
+        }
+    }
+}
+
+// Функция завершения входа
+async function completeLogin(userData) {
+    try {
+        console.log('🚀 Завершаем вход пользователя:', userData.telegram_id);
+        
+        // Обновляем статус входа
+        const { error } = await supabase
+            .from('users')
+            .update({
+                is_logged_in: true,
+                last_login: new Date().toISOString()
+            })
+            .eq('telegram_id', userData.telegram_id);
+            
+        if (error) {
+            console.error('❌ Ошибка обновления статуса входа:', error);
+        }
+        
+        currentUserData = userData;
+        showMainApp();
+        
+    } catch (error) {
+        console.error('❌ Ошибка при завершении входа:', error);
+        showMainApp(); // Все равно показываем приложение
+    }
+}
+
+// Закрытие модального окна пароля
+function closePasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    if (modal) {
+        modal.classList.remove('show');
+        const loginPassword = document.getElementById('loginPassword');
+        if (loginPassword) loginPassword.value = '';
+        pendingLoginUser = null;
+    }
+}
+
+function cancelLogin() {
+    closePasswordModal();
+    showNotification('Вход отменен');
+    
+    // После отмены входа показываем экран регистрации снова
+    // но сохраняем уже выбранный класс если он был
+    showRegistrationScreen();
+    
+    // Восстанавливаем выбранный класс если он был
+    if (selectedClass) {
+        updateClassButtons();
+        updateRegistrationButton();
+    }
+}
+
+// Функция выхода
+async function logout() {
+    if (!confirm('Вы уверены, что хотите выйти?')) {
+        return;
+    }
+    
+    try {
+        console.log('🚪 Выход из аккаунта...');
+        
+        // Обновляем статус в базе данных
+        if (user && currentUserData) {
+            const { error } = await supabase
+                .from('users')
+                .update({
+                    is_logged_in: false,
+                    last_login: new Date().toISOString()
+                })
+                .eq('telegram_id', user.id);
+                
+            if (error) {
+                console.error('❌ Ошибка обновления статуса выхода:', error);
+            }
+        }
+        
+        // Полностью очищаем данные
+        user = null;
+        currentUserData = null;
+        selectedClass = null;
+        notes = [];
+        
+        console.log('✅ Данные очищены, перезагружаем страницу...');
+        
+        // Показываем сообщение
+        showNotification('Выход выполнен успешно');
+        
+        // Ждем немного и перезагружаем страницу
+        setTimeout(() => {
+            window.location.href = window.location.origin + window.location.pathname;
+        }, 1500);
+        
+    } catch (error) {
+        console.error('❌ Ошибка при выходе:', error);
+        // В случае ошибки все равно делаем перезагрузку
+        window.location.reload();
+    }
+}
+
+// Дополнительные функции профиля
+async function refreshProfile() {
+    if (!user) return;
+    
+    try {
+        console.log('🔄 Обновляем данные профиля...');
+        const userData = await getUserData(user.id);
+        if (userData) {
+            currentUserData = userData;
+            loadProfileData();
+            showNotification('✅ Данные профиля обновлены!');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обновления профиля:', error);
+        showNotification('❌ Ошибка при обновлении данных');
+    }
+}
+
+function exportData() {
+    if (!currentUserData) return;
+    
+    // Создаем данные для экспорта
+    const exportData = {
+        profile: currentUserData,
+        notes: notes,
+        export_date: new Date().toISOString(),
+        export_from: 'Derzava CDZ'
+    };
+    
+    // Создаем и скачиваем файл
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `derzava_export_${user.id}_${new Date().getTime()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showNotification('✅ Данные экспортированы!');
+}
+
+// ==============================
+// ОСНОВНЫЕ ФУНКЦИИ ПРИЛОЖЕНИЯ
+// ==============================
+
+// Переключение между секциями
+function showSection(sectionName) {
+    // Скрываем все секции
+    const sections = document.querySelectorAll('.section-content');
+    sections.forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Показываем выбранную секцию
+    const activeSection = document.getElementById(`${sectionName}-content`);
+    if (activeSection) {
+        activeSection.classList.add('active');
+    }
+    
+    // Загружаем данные для определенных разделов
+    if (sectionName === 'notes') {
+        loadNotes();
+    } else if (sectionName === 'profile') {
+        loadProfileData();
+    } else if (sectionName === 'messenger') {
+        // При открытии мессенджера загружаем контакты
+        loadContacts();
+    }
+    
+    // Закрываем уведомления при переключении секций
+    closeNotifications();
+}
+
+// Управление уведомлениями
+function toggleNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    if (panel) {
+        panel.classList.toggle('show');
+        
+        // При открытии панели обновляем уведомления
+        if (panel.classList.contains('show')) {
+            loadNotifications();
+        }
+    }
+}
+
+function closeNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    if (panel) {
+        panel.classList.remove('show');
+    }
+}
+
+// Создание новой заметки
+function createNewNote() {
+    showNoteModal();
+}
+
+// Сброс состояния регистрации
+function resetRegistrationState() {
+    selectedClass = null;
+    const classButtons = document.querySelectorAll('.class-btn');
+    classButtons.forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    updateRegistrationButton();
+}
+
+// ==============================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==============================
+
+// Получить отображаемое имя пользователя
+function getUserDisplayName(userData) {
+    return userData.display_name || 
+           (userData.first_name && userData.last_name ? 
+            `${userData.first_name} ${userData.last_name}` : 
+            userData.first_name || 
+            userData.username || 
+            'Пользователь');
+}
+
+// Форматирование времени
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+}
+
+// Форматирование даты
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = now - date;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+        return 'Сегодня';
+    } else if (diffDays === 1) {
+        return 'Вчера';
+    } else if (diffDays < 7) {
+        return `${diffDays} дней назад`;
+    } else {
+        return date.toLocaleDateString('ru-RU');
+    }
+}
+
+// Декоратор для ограничения частоты вызовов
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Обработка ввода текста (для индикации набора)
+function handleTyping() {
+    if (!currentChat) return;
+    
+    clearTimeout(typingTimer);
+    sendTypingStarted();
+    
+    typingTimer = setTimeout(() => {
+        sendTypingStopped();
+    }, 1000);
+}
+
+// Отправить статус "печатает"
+function sendTypingStarted() {
+    console.log('Пользователь печатает...');
+}
+
+// Отправить статус "перестал печатать"
+function sendTypingStopped() {
+    console.log('Пользователь перестал печатать');
+}
+
+// Форматирование текста сообщения (поддержка эмодзи)
+function formatMessageText(text) {
+    const emojiMap = {
+        ':)': '😊',
+        ':(': '😔',
+        ':D': '😃',
+        ':p': '😋',
+        ';-)': '😉',
+        '<3': '❤️'
+    };
+    
+    let formattedText = text;
+    Object.keys(emojiMap).forEach(key => {
+        formattedText = formattedText.split(key).join(emojiMap[key]);
+    });
+    
+    return formattedText.replace(/\n/g, '<br>');
+}
+
+// Получить иконку для типа уведомления
+function getNotificationIcon(type) {
+    const icons = {
+        'message': 'bx-message',
+        'call': 'bx-phone-call',
+        'system': 'bx-info-circle',
+        'warning': 'bx-error',
+        'success': 'bx-check-circle'
+    };
+    return icons[type] || 'bx-bell';
+}
+
+// Получить статус звонка
+function getCallStatus(call, isOutgoing) {
+    if (call.status === 'completed') return 'completed';
+    if (call.status === 'missed') return isOutgoing ? 'missed' : 'missed';
+    if (call.status === 'declined') return 'declined';
+    return 'completed';
+}
+
+// Получить иконку статуса звонка
+function getCallStatusIcon(status) {
+    const icons = {
+        'completed': 'bx-check-circle',
+        'missed': 'bx-x-circle',
+        'declined': 'bx-x-circle',
+        'in_progress': 'bx-phone-call'
+    };
+    return icons[status] || 'bx-phone';
+}
+
+// Показать загрузку в мессенджере
+function showMessengerLoading(section) {
+    const container = document.getElementById(section);
+    if (!container) return;
+    
+    const list = container.querySelector('.messenger-list');
+    if (list) {
+        list.innerHTML = `
+            <div class="messenger-loading">
+                <i class='bx bx-loader-circle bx-spin'></i>
+                <p>Загрузка...</p>
+            </div>
+        `;
+    }
+}
+
+// Показать ошибку в мессенджере
+function showMessengerError(section, message) {
+    const container = document.getElementById(section);
+    if (!container) return;
+    
+    const list = container.querySelector('.messenger-list');
+    if (list) {
+        list.innerHTML = `
+            <div class="messenger-error">
+                <i class='bx bx-error-circle'></i>
+                <p>${message}</p>
+                <button onclick="location.reload()">Попробовать снова</button>
+            </div>
+        `;
+    }
+}
 
 // Экранирование HTML
 function escapeHtml(text) {
@@ -1153,33 +2264,36 @@ function getCategoryName(category) {
         'school': 'Школа',
         'homework': 'Домашние задания',
         'personal': 'Личные',
-        'ideas': 'Идеи'
+        'ideas': 'Идеы'
     };
     return categories[category] || category;
 }
 
-// Форматирование даты
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-        return 'Сегодня';
-    } else if (diffDays === 1) {
-        return 'Вчера';
-    } else if (diffDays < 7) {
-        return `${diffDays} дней назад`;
-    } else {
-        return date.toLocaleDateString('ru-RU');
-    }
-}
-
 // Показать уведомление
 function showNotification(message) {
-    // Временное решение - можно заменить на красивый toast
-    alert(message);
+    // Создаем временное уведомление
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--primary);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        z-index: 10000;
+        max-width: 300px;
+        word-wrap: break-word;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+    `;
+    
+    notification.innerHTML = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 
 // Симуляция пользователя для тестирования
@@ -1193,34 +2307,8 @@ function simulateTelegramUser() {
     };
     
     console.log('⚠️ Режим тестирования (вне Telegram)');
-    
-    // Для тестирования показываем регистрацию
     displayRegistrationInfo();
     showRegistrationScreen();
-}
-
-// Функция для создания новой заметки
-function createNewNote() {
-    showNoteModal();
-}
-
-// Функции для профиля (заглушки)
-function editProfile() {
-    showNotification('Функция редактирования профиля скоро будет доступна');
-}
-
-function showSettings() {
-    showNotification('Настройки будут доступны в следующем обновлении');
-}
-
-// Функция сброса состояния регистрации
-function resetRegistrationState() {
-    selectedClass = null;
-    const classButtons = document.querySelectorAll('.class-btn');
-    classButtons.forEach(btn => {
-        btn.classList.remove('selected');
-    });
-    updateRegistrationButton();
 }
 
 // ==============================
@@ -1232,8 +2320,6 @@ window.completeRegistration = completeRegistration;
 window.showSection = showSection;
 window.toggleNotifications = toggleNotifications;
 window.closeNotifications = closeNotifications;
-window.editProfile = editProfile;
-window.showSettings = showSettings;
 window.logout = logout;
 window.createNewNote = createNewNote;
 window.resetRegistrationState = resetRegistrationState;
@@ -1248,6 +2334,19 @@ window.togglePinNote = togglePinNote;
 window.editNote = editNote;
 window.searchNotes = searchNotes;
 window.filterNotes = filterNotes;
+
+// Функции мессенджера
+window.openChat = openChat;
+window.sendMessage = sendMessage;
+window.startCall = startCall;
+window.acceptCall = acceptCall;
+window.declineCall = declineCall;
+window.endCall = endCall;
+window.markNotificationAsRead = markNotificationAsRead;
+window.insertEmoji = insertEmoji;
+window.toggleEmojiPicker = toggleEmojiPicker;
+window.showMessengerSection = showMessengerSection;
+window.redial = redial;
 
 // Функции профиля
 window.selectNicknameColor = selectNicknameColor;
@@ -1268,3 +2367,15 @@ window.debugSupabase = () => {
     console.log('Current User Data:', currentUserData);
     console.log('Supabase client:', supabase);
 };
+
+// Добавляем CSS для анимации уведомлений
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+`;
+document.head.appendChild(style);
+
+console.log('✅ Derzava CDZ инициализирован: Мессенджер, Уведомления, Заметки и Профиль готовы к работе!');
