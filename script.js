@@ -34,6 +34,7 @@ async function initializeTelegramApp() {
         
         if (user) {
             console.log('Telegram user data:', user);
+            await testSupabaseConnection();
             await checkUserRegistration();
         } else {
             console.log('Telegram данные не получены, режим тестирования');
@@ -46,6 +47,30 @@ async function initializeTelegramApp() {
     }
 }
 
+// Функция проверки подключения к Supabase
+async function testSupabaseConnection() {
+    try {
+        console.log('🔌 Проверяем подключение к Supabase...');
+        
+        const { data, error } = await supabase
+            .from('users')
+            .select('count')
+            .limit(1);
+            
+        if (error) {
+            console.error('❌ Ошибка подключения к Supabase:', error);
+            return false;
+        }
+        
+        console.log('✅ Подключение к Supabase успешно');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Ошибка тестирования подключения:', error);
+        return false;
+    }
+}
+
 // Проверка регистрации пользователя
 async function checkUserRegistration() {
     try {
@@ -54,19 +79,18 @@ async function checkUserRegistration() {
         const userData = await getUserData(user.id);
         
         if (userData) {
-            // Пользователь найден, проверяем пароль
+            console.log('✅ Пользователь найден в базе:', userData);
             currentUserData = userData;
             
             if (userData.account_password) {
-                // Требуется пароль
+                console.log('🔐 Требуется пароль');
                 await showPasswordLogin(userData);
             } else {
-                // Пароль не установлен, сразу входим
+                console.log('🚀 Вход без пароля');
                 await completeLogin(userData);
             }
         } else {
-            // Новый пользователь
-            console.log('Пользователь не найден, показываем регистрацию');
+            console.log('❌ Пользователь не найден, показываем регистрацию');
             showRegistrationScreen();
         }
         
@@ -198,10 +222,12 @@ async function completeRegistration() {
             username: user.username || '',
             class: selectedClass,
             registration_date: new Date().toISOString(),
-            is_active: true
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
         
-        console.log('Регистрируем пользователя:', userData);
+        console.log('📝 Регистрируем пользователя:', userData);
         
         const { data, error } = await supabase
             .from('users')
@@ -210,11 +236,11 @@ async function completeRegistration() {
             .single();
             
         if (error) {
-            console.error('Ошибка регистрации:', error);
+            console.error('❌ Ошибка регистрации:', error);
             
             // Если пользователь уже существует (дубликат)
             if (error.code === '23505') {
-                console.log('Пользователь уже зарегистрирован, загружаем данные...');
+                console.log('ℹ️ Пользователь уже зарегистрирован, загружаем данные...');
                 const existingUser = await getUserData(user.id);
                 if (existingUser) {
                     currentUserData = existingUser;
@@ -248,6 +274,8 @@ async function completeRegistration() {
 // Получение данных пользователя
 async function getUserData(telegramId) {
     try {
+        console.log('🔍 Ищем пользователя с ID:', telegramId);
+        
         const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -256,15 +284,17 @@ async function getUserData(telegramId) {
             
         if (error) {
             if (error.code === 'PGRST116') {
-                return null; // Пользователь не найден
+                console.log('❌ Пользователь не найден');
+                return null;
             }
-            console.error('Ошибка получения пользователя:', error);
+            console.error('❌ Ошибка получения пользователя:', error);
             return null;
         }
         
+        console.log('✅ Пользователь найден:', data);
         return data;
     } catch (error) {
-        console.error('Ошибка в getUserData:', error);
+        console.error('❌ Ошибка в getUserData:', error);
         return null;
     }
 }
@@ -325,6 +355,344 @@ function closeNotifications() {
     if (panel) {
         panel.classList.remove('show');
     }
+}
+
+// ==============================
+// СИСТЕМА ПРОФИЛЯ (ИСПРАВЛЕННАЯ)
+// ==============================
+
+// Загрузка данных профиля
+function loadProfileData() {
+    if (!currentUserData) {
+        console.log('❌ Нет данных пользователя для загрузки профиля');
+        return;
+    }
+    
+    console.log('📊 Загружаем данные профиля:', currentUserData);
+    
+    // Основная информация
+    document.getElementById('profileTelegramId').textContent = currentUserData.telegram_id || '-';
+    document.getElementById('profileFirstName').textContent = currentUserData.first_name || 'Не указано';
+    document.getElementById('profileLastName').textContent = currentUserData.last_name || 'Не указано';
+    document.getElementById('profileClass').textContent = currentUserData.class || 'Не указан';
+    document.getElementById('profileUsername').textContent = currentUserData.username ? `@${currentUserData.username}` : 'Не указан';
+    
+    // Форматируем дату регистрации
+    if (currentUserData.registration_date) {
+        const regDate = new Date(currentUserData.registration_date);
+        document.getElementById('profileRegDate').textContent = regDate.toLocaleDateString('ru-RU');
+    } else {
+        document.getElementById('profileRegDate').textContent = 'Не указана';
+    }
+    
+    // Загружаем настройки профиля
+    loadProfileSettings();
+}
+
+function loadProfileSettings() {
+    console.log('⚙️ Загружаем настройки профиля:', {
+        display_name: currentUserData.display_name,
+        display_bio: currentUserData.display_bio,
+        nickname_color: currentUserData.nickname_color
+    });
+    
+    // Отображаемое имя
+    document.getElementById('displayName').value = currentUserData.display_name || '';
+    
+    // Описание профиля
+    document.getElementById('displayBio').value = currentUserData.display_bio || '';
+    
+    // Цвет ника
+    const savedColor = currentUserData.nickname_color || '#667eea';
+    selectNicknameColor(savedColor);
+}
+
+function selectNicknameColor(color) {
+    nicknameColor = color;
+    const colorOptions = document.querySelectorAll('.color-option-small');
+    colorOptions.forEach(option => {
+        option.classList.remove('selected');
+        if (option.dataset.color === color) {
+            option.classList.add('selected');
+        }
+    });
+    document.getElementById('nicknameColor').value = color;
+}
+
+// ИСПРАВЛЕННАЯ функция сохранения настроек профиля
+async function saveProfileSettings() {
+    if (!user || !currentUserData) {
+        showNotification('Ошибка: пользователь не авторизован');
+        return;
+    }
+    
+    const displayName = document.getElementById('displayName').value.trim();
+    const displayBio = document.getElementById('displayBio').value.trim();
+    
+    console.log('💾 Сохраняем настройки:', { 
+        telegram_id: user.id,
+        displayName, 
+        displayBio, 
+        nicknameColor 
+    });
+    
+    try {
+        const updateData = {
+            display_name: displayName || null,
+            display_bio: displayBio || null,
+            nickname_color: nicknameColor,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('📤 Отправляем данные в Supabase:', updateData);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .update(updateData)
+            .eq('telegram_id', user.id)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Ошибка сохранения настроек:', error);
+            showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
+            return;
+        }
+        
+        console.log('✅ Настройки сохранены:', data);
+        currentUserData = data;
+        showNotification('✅ Настройки профиля сохранены!');
+        
+    } catch (error) {
+        console.error('❌ Ошибка при сохранении настроек:', error);
+        showNotification('❌ Ошибка при сохранении настроек: ' + error.message);
+    }
+}
+
+// ИСПРАВЛЕННАЯ функция установки пароля
+async function setAccountPassword() {
+    const password = document.getElementById('accountPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (!password) {
+        showNotification('Введите пароль');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showNotification('Пароли не совпадают');
+        return;
+    }
+    
+    if (password.length < 4) {
+        showNotification('Пароль должен содержать минимум 4 символа');
+        return;
+    }
+    
+    try {
+        console.log('🔐 Устанавливаем пароль для пользователя:', user.id);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .update({
+                account_password: password,
+                updated_at: new Date().toISOString()
+            })
+            .eq('telegram_id', user.id)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('❌ Ошибка установки пароля:', error);
+            showNotification('❌ Ошибка при установке пароля: ' + error.message);
+            return;
+        }
+        
+        console.log('✅ Пароль установлен:', data);
+        currentUserData = data;
+        
+        // Очищаем поля
+        document.getElementById('accountPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        
+        showNotification('✅ Пароль успешно установлен!');
+        
+    } catch (error) {
+        console.error('❌ Ошибка при установке пароля:', error);
+        showNotification('❌ Ошибка при установке пароля: ' + error.message);
+    }
+}
+
+// Функция показа модального окна пароля
+async function showPasswordLogin(userData) {
+    pendingLoginUser = userData;
+    const modal = document.getElementById('passwordModal');
+    modal.classList.add('show');
+    
+    // Фокусируемся на поле ввода
+    setTimeout(() => {
+        document.getElementById('loginPassword').focus();
+    }, 100);
+}
+
+// Функция проверки пароля
+async function verifyPassword() {
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!password) {
+        showNotification('Введите пароль');
+        return;
+    }
+    
+    if (!pendingLoginUser) {
+        showNotification('Ошибка: данные пользователя не найдены');
+        return;
+    }
+    
+    console.log('🔐 Проверяем пароль...');
+    
+    // Проверяем пароль
+    if (pendingLoginUser.account_password === password) {
+        console.log('✅ Пароль верный');
+        await completeLogin(pendingLoginUser);
+        closePasswordModal();
+    } else {
+        console.log('❌ Неверный пароль');
+        showNotification('Неверный пароль');
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginPassword').focus();
+    }
+}
+
+// Функция завершения входа
+async function completeLogin(userData) {
+    try {
+        console.log('🚀 Завершаем вход пользователя:', userData.telegram_id);
+        
+        // Обновляем статус входа
+        const { error } = await supabase
+            .from('users')
+            .update({
+                is_logged_in: true,
+                last_login: new Date().toISOString()
+            })
+            .eq('telegram_id', userData.telegram_id);
+            
+        if (error) {
+            console.error('❌ Ошибка обновления статуса входа:', error);
+        }
+        
+        currentUserData = userData;
+        showMainApp();
+        
+    } catch (error) {
+        console.error('❌ Ошибка при завершении входа:', error);
+        showMainApp(); // Все равно показываем приложение
+    }
+}
+
+// Закрытие модального окна пароля
+function closePasswordModal() {
+    const modal = document.getElementById('passwordModal');
+    modal.classList.remove('show');
+    document.getElementById('loginPassword').value = '';
+    pendingLoginUser = null;
+}
+
+function cancelLogin() {
+    closePasswordModal();
+    showNotification('Вход отменен');
+}
+
+// ИСПРАВЛЕННАЯ функция выхода
+async function logout() {
+    if (!confirm('Вы уверены, что хотите выйти?')) {
+        return;
+    }
+    
+    try {
+        console.log('🚪 Выход из аккаунта...');
+        
+        // Обновляем статус в базе данных
+        if (user && currentUserData) {
+            const { error } = await supabase
+                .from('users')
+                .update({
+                    is_logged_in: false,
+                    last_login: new Date().toISOString()
+                })
+                .eq('telegram_id', user.id);
+                
+            if (error) {
+                console.error('❌ Ошибка обновления статуса выхода:', error);
+            }
+        }
+        
+        // Полностью очищаем данные
+        user = null;
+        currentUserData = null;
+        selectedClass = null;
+        notes = [];
+        
+        console.log('✅ Данные очищены, перезагружаем страницу...');
+        
+        // Показываем сообщение
+        showNotification('Выход выполнен успешно');
+        
+        // Ждем немного и перезагружаем страницу
+        setTimeout(() => {
+            window.location.href = window.location.origin + window.location.pathname;
+        }, 1500);
+        
+    } catch (error) {
+        console.error('❌ Ошибка при выходе:', error);
+        // В случае ошибки все равно делаем перезагрузку
+        window.location.reload();
+    }
+}
+
+// Дополнительные функции профиля
+async function refreshProfile() {
+    if (!user) return;
+    
+    try {
+        console.log('🔄 Обновляем данные профиля...');
+        const userData = await getUserData(user.id);
+        if (userData) {
+            currentUserData = userData;
+            loadProfileData();
+            showNotification('✅ Данные профиля обновлены!');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка обновления профиля:', error);
+        showNotification('❌ Ошибка при обновлении данных');
+    }
+}
+
+function exportData() {
+    if (!currentUserData) return;
+    
+    // Создаем данные для экспорта
+    const exportData = {
+        profile: currentUserData,
+        notes: notes,
+        export_date: new Date().toISOString(),
+        export_from: 'Derzava CDZ'
+    };
+    
+    // Создаем и скачиваем файл
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `derzava_export_${user.id}_${new Date().getTime()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showNotification('✅ Данные экспортированы!');
 }
 
 // ==============================
@@ -660,301 +1028,6 @@ function filterNotes() {
 }
 
 // ==============================
-// СИСТЕМА ПРОФИЛЯ
-// ==============================
-
-// Загрузка данных профиля
-function loadProfileData() {
-    if (!currentUserData) return;
-    
-    // Основная информация
-    document.getElementById('profileTelegramId').textContent = currentUserData.telegram_id;
-    document.getElementById('profileFirstName').textContent = currentUserData.first_name || 'Не указано';
-    document.getElementById('profileLastName').textContent = currentUserData.last_name || 'Не указано';
-    document.getElementById('profileClass').textContent = currentUserData.class || 'Не указан';
-    document.getElementById('profileUsername').textContent = currentUserData.username ? `@${currentUserData.username}` : 'Не указан';
-    
-    // Форматируем дату регистрации
-    if (currentUserData.registration_date) {
-        const regDate = new Date(currentUserData.registration_date);
-        document.getElementById('profileRegDate').textContent = regDate.toLocaleDateString('ru-RU');
-    } else {
-        document.getElementById('profileRegDate').textContent = 'Не указана';
-    }
-    
-    // Загружаем настройки профиля
-    loadProfileSettings();
-}
-
-function loadProfileSettings() {
-    // Отображаемое имя
-    document.getElementById('displayName').value = currentUserData.display_name || '';
-    
-    // Описание профиля
-    document.getElementById('displayBio').value = currentUserData.display_bio || '';
-    
-    // Цвет ника
-    const savedColor = currentUserData.nickname_color || '#667eea';
-    selectNicknameColor(savedColor);
-}
-
-function selectNicknameColor(color) {
-    nicknameColor = color;
-    const colorOptions = document.querySelectorAll('.color-option-small');
-    colorOptions.forEach(option => {
-        option.classList.remove('selected');
-        if (option.dataset.color === color) {
-            option.classList.add('selected');
-        }
-    });
-    document.getElementById('nicknameColor').value = color;
-}
-
-async function saveProfileSettings() {
-    if (!user || !currentUserData) {
-        showNotification('Ошибка: пользователь не авторизован');
-        return;
-    }
-    
-    const displayName = document.getElementById('displayName').value.trim();
-    const displayBio = document.getElementById('displayBio').value.trim();
-    
-    try {
-        const { data, error } = await supabase
-            .from('users')
-            .update({
-                display_name: displayName || null,
-                display_bio: displayBio || null,
-                nickname_color: nicknameColor,
-                updated_at: new Date().toISOString()
-            })
-            .eq('telegram_id', user.id)
-            .select()
-            .single();
-            
-        if (error) {
-            console.error('Ошибка сохранения настроек:', error);
-            showNotification('Ошибка при сохранении настроек');
-            return;
-        }
-        
-        currentUserData = data;
-        showNotification('Настройки профиля сохранены!');
-        
-    } catch (error) {
-        console.error('Ошибка при сохранении настроек:', error);
-        showNotification('Ошибка при сохранении настроек');
-    }
-}
-
-async function setAccountPassword() {
-    const password = document.getElementById('accountPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (!password) {
-        showNotification('Введите пароль');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showNotification('Пароли не совпадают');
-        return;
-    }
-    
-    if (password.length < 4) {
-        showNotification('Пароль должен содержать минимум 4 символа');
-        return;
-    }
-    
-    try {
-        // В реальном приложении пароль должен хешироваться!
-        // Здесь для демонстрации сохраняем как есть
-        const { error } = await supabase
-            .from('users')
-            .update({
-                account_password: password,
-                updated_at: new Date().toISOString()
-            })
-            .eq('telegram_id', user.id);
-            
-        if (error) {
-            console.error('Ошибка установки пароля:', error);
-            showNotification('Ошибка при установке пароля');
-            return;
-        }
-        
-        // Очищаем поля
-        document.getElementById('accountPassword').value = '';
-        document.getElementById('confirmPassword').value = '';
-        
-        showNotification('Пароль успешно установлен!');
-        
-    } catch (error) {
-        console.error('Ошибка при установке пароля:', error);
-        showNotification('Ошибка при установке пароля');
-    }
-}
-
-// Функция показа модального окна пароля
-async function showPasswordLogin(userData) {
-    pendingLoginUser = userData;
-    const modal = document.getElementById('passwordModal');
-    modal.classList.add('show');
-    
-    // Фокусируемся на поле ввода
-    setTimeout(() => {
-        document.getElementById('loginPassword').focus();
-    }, 100);
-}
-
-// Функция проверки пароля
-async function verifyPassword() {
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!password) {
-        showNotification('Введите пароль');
-        return;
-    }
-    
-    if (!pendingLoginUser) {
-        showNotification('Ошибка: данные пользователя не найдены');
-        return;
-    }
-    
-    // Проверяем пароль (в реальном приложении должно быть хеширование)
-    if (pendingLoginUser.account_password === password) {
-        await completeLogin(pendingLoginUser);
-        closePasswordModal();
-    } else {
-        showNotification('Неверный пароль');
-        document.getElementById('loginPassword').value = '';
-        document.getElementById('loginPassword').focus();
-    }
-}
-
-// Функция завершения входа
-async function completeLogin(userData) {
-    try {
-        // Обновляем статус входа
-        const { error } = await supabase
-            .from('users')
-            .update({
-                is_logged_in: true,
-                last_login: new Date().toISOString()
-            })
-            .eq('telegram_id', userData.telegram_id);
-            
-        if (error) {
-            console.error('Ошибка обновления статуса входа:', error);
-        }
-        
-        currentUserData = userData;
-        showMainApp();
-        
-    } catch (error) {
-        console.error('Ошибка при завершении входа:', error);
-        showMainApp(); // Все равно показываем приложение
-    }
-}
-
-// Закрытие модального окна пароля
-function closePasswordModal() {
-    const modal = document.getElementById('passwordModal');
-    modal.classList.remove('show');
-    document.getElementById('loginPassword').value = '';
-    pendingLoginUser = null;
-}
-
-function cancelLogin() {
-    closePasswordModal();
-    showNotification('Вход отменен');
-    // Можно добавить редирект на начальную страницу если нужно
-}
-
-// Обновленная функция выхода
-async function logout() {
-    if (!confirm('Вы уверены, что хотите выйти?')) {
-        return;
-    }
-    
-    try {
-        // Обновляем статус в базе данных
-        if (user && currentUserData) {
-            await supabase
-                .from('users')
-                .update({
-                    is_logged_in: false,
-                    last_login: new Date().toISOString()
-                })
-                .eq('telegram_id', user.id);
-        }
-        
-        // Полностью очищаем данные и перезагружаем страницу
-        user = null;
-        currentUserData = null;
-        selectedClass = null;
-        notes = [];
-        
-        // Показываем сообщение
-        showNotification('Выход выполнен успешно');
-        
-        // Даем время показать сообщение, затем перезагрузка
-        setTimeout(() => {
-            // Используем location.replace чтобы избежать кэширования
-            location.replace(location.pathname + location.search + location.hash);
-        }, 1000);
-        
-    } catch (error) {
-        console.error('Ошибка при выходе:', error);
-        // В случае ошибки все равно делаем перезагрузку
-        location.reload();
-    }
-}
-
-// Дополнительные функции профиля
-async function refreshProfile() {
-    if (!user) return;
-    
-    try {
-        const userData = await getUserData(user.id);
-        if (userData) {
-            currentUserData = userData;
-            loadProfileData();
-            showNotification('Данные профиля обновлены!');
-        }
-    } catch (error) {
-        console.error('Ошибка обновления профиля:', error);
-        showNotification('Ошибка при обновлении данных');
-    }
-}
-
-function exportData() {
-    if (!currentUserData) return;
-    
-    // Создаем данные для экспорта
-    const exportData = {
-        profile: currentUserData,
-        notes: notes,
-        export_date: new Date().toISOString(),
-        export_from: 'Derzava CDZ'
-    };
-    
-    // Создаем и скачиваем файл
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `derzava_export_${user.id}_${new Date().getTime()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    showNotification('Данные экспортированы!');
-}
-
-// ==============================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==============================
 
@@ -1001,11 +1074,6 @@ function showNotification(message) {
     alert(message);
 }
 
-// Показать ошибку
-function showError(message) {
-    showNotification(`Ошибка: ${message}`);
-}
-
 // Симуляция пользователя для тестирования
 function simulateTelegramUser() {
     user = {
@@ -1023,7 +1091,7 @@ function simulateTelegramUser() {
     showRegistrationScreen();
 }
 
-// Функция для создания новой заметки (из заглушки)
+// Функция для создания новой заметки
 function createNewNote() {
     showNoteModal();
 }
@@ -1075,3 +1143,9 @@ window.cancelLogin = cancelLogin;
 window.getCurrentUser = () => currentUserData;
 window.getTelegramUser = () => user;
 window.getNotes = () => notes;
+window.debugSupabase = () => {
+    console.log('🔧 Отладка Supabase:');
+    console.log('User:', user);
+    console.log('Current User Data:', currentUserData);
+    console.log('Supabase client:', supabase);
+};
