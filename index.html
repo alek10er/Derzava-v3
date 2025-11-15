@@ -323,41 +323,111 @@
                     <div class="section-header">
                         <h2><i class='bx bx-user'></i> Профиль</h2>
                     </div>
-                    <div class="profile-info">
-                        <div class="info-item">
-                            <label>Имя:</label>
-                            <span id="profileFirstName">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Фамилия:</label>
-                            <span id="profileLastName">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Класс:</label>
-                            <span id="profileClass">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Telegram:</label>
-                            <span id="profileUsername">-</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Дата регистрации:</label>
-                            <span id="profileRegDate">-</span>
+                    
+                    <!-- Основная информация -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-info-circle'></i> Основная информация</h3>
+                        <div class="profile-info">
+                            <div class="info-item">
+                                <label>Telegram ID:</label>
+                                <span id="profileTelegramId">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Имя:</label>
+                                <span id="profileFirstName">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Фамилия:</label>
+                                <span id="profileLastName">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Класс:</label>
+                                <span id="profileClass">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Username:</label>
+                                <span id="profileUsername">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Дата регистрации:</label>
+                                <span id="profileRegDate">-</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="profile-actions">
-                        <button class="profile-btn primary" onclick="editProfile()">
-                            <i class='bx bx-edit'></i>
-                            Редактировать профиль
-                        </button>
-                        <button class="profile-btn secondary" onclick="showSettings()">
-                            <i class='bx bx-cog'></i>
-                            Настройки
-                        </button>
-                        <button class="profile-btn logout" onclick="logout()">
-                            <i class='bx bx-log-out'></i>
-                            Выйти
-                        </button>
+
+                    <!-- Настройки профиля для мессенджера -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-message-alt'></i> Настройки для мессенджера</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label for="displayName">Отображаемое имя</label>
+                                <input type="text" id="displayName" placeholder="Введите имя для отображения">
+                                <p class="form-hint">Это имя будут видеть другие пользователи в мессенджере</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="displayBio">Описание профиля</label>
+                                <textarea id="displayBio" placeholder="Расскажите о себе..." rows="3"></textarea>
+                                <p class="form-hint">Краткое описание, которое увидят другие пользователи</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="nicknameColor">Цвет ника</label>
+                                <div class="color-picker-small">
+                                    <div class="color-option-small selected" data-color="#667eea" style="background: #667eea;" onclick="selectNicknameColor('#667eea')"></div>
+                                    <div class="color-option-small" data-color="#4facfe" style="background: #4facfe;" onclick="selectNicknameColor('#4facfe')"></div>
+                                    <div class="color-option-small" data-color="#43e97b" style="background: #43e97b;" onclick="selectNicknameColor('#43e97b')"></div>
+                                    <div class="color-option-small" data-color="#fa709a" style="background: #fa709a;" onclick="selectNicknameColor('#fa709a')"></div>
+                                    <div class="color-option-small" data-color="#ffd166" style="background: #ffd166;" onclick="selectNicknameColor('#ffd166')"></div>
+                                    <div class="color-option-small" data-color="#ffffff" style="background: #ffffff; border: 1px solid var(--border);" onclick="selectNicknameColor('#ffffff')"></div>
+                                </div>
+                                <input type="hidden" id="nicknameColor" value="#667eea">
+                            </div>
+                            
+                            <button class="btn-primary" onclick="saveProfileSettings()">
+                                <i class='bx bx-save'></i>
+                                Сохранить настройки
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Безопасность -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-shield-alt'></i> Безопасность</h3>
+                        <div class="security-settings">
+                            <div class="form-group">
+                                <label for="accountPassword">Пароль для входа</label>
+                                <input type="password" id="accountPassword" placeholder="Введите пароль">
+                                <p class="form-hint">Дополнительный пароль для входа в аккаунт</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Подтвердите пароль</label>
+                                <input type="password" id="confirmPassword" placeholder="Повторите пароль">
+                            </div>
+                            <button class="btn-primary" onclick="setAccountPassword()">
+                                <i class='bx bx-lock'></i>
+                                Установить пароль
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Действия -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-cog'></i> Действия</h3>
+                        <div class="profile-actions">
+                            <button class="profile-btn primary" onclick="refreshProfile()">
+                                <i class='bx bx-refresh'></i>
+                                Обновить данные
+                            </button>
+                            <button class="profile-btn secondary" onclick="exportData()">
+                                <i class='bx bx-export'></i>
+                                Экспорт данных
+                            </button>
+                            <button class="profile-btn logout" onclick="logout()">
+                                <i class='bx bx-log-out'></i>
+                                Выйти
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -417,6 +487,26 @@
                 <button class="btn-secondary" onclick="closeNoteModal()">Отмена</button>
                 <button class="btn-primary" id="saveNoteBtn" onclick="saveNote()">Сохранить заметку</button>
                 <button class="btn-danger" id="deleteNoteBtn" onclick="deleteNote()" style="display: none;">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа с паролем -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class='bx bx-lock-alt'></i> Вход в аккаунт</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="loginPassword">Пароль аккаунта</label>
+                    <input type="password" id="loginPassword" placeholder="Введите ваш пароль">
+                    <p class="form-hint">Для этого аккаунта установлен дополнительный пароль</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="cancelLogin()">Отмена</button>
+                <button class="btn-primary" onclick="verifyPassword()">Войти</button>
             </div>
         </div>
     </div>
