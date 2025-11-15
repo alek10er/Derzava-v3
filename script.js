@@ -203,7 +203,7 @@ function updateRegistrationButton() {
     }
 }
 
-// Завершение регистрации
+// Завершение регистрации (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 async function completeRegistration() {
     if (!selectedClass || !user) {
         showNotification('Пожалуйста, выберите класс');
@@ -215,6 +215,62 @@ async function completeRegistration() {
     regBtn.textContent = 'Регистрируем...';
     
     try {
+        // СНАЧАЛА проверяем, не зарегистрирован ли пользователь уже
+        const existingUser = await getUserData(user.id);
+        
+        if (existingUser) {
+            console.log('ℹ️ Пользователь уже зарегистрирован, обновляем данные...');
+            
+            // Обновляем класс пользователя
+            const updateData = {
+                class: selectedClass,
+                updated_at: new Date().toISOString()
+            };
+            
+            const { data, error } = await supabase
+                .from('users')
+                .update(updateData)
+                .eq('telegram_id', user.id)
+                .select();
+                
+            if (error) {
+                console.error('❌ Ошибка обновления пользователя:', error);
+                throw error;
+            }
+
+            // Вручную берем первый элемент
+            if (data && data.length > 0) {
+                console.log('✅ Данные пользователя обновлены:', data[0]);
+                currentUserData = data[0];
+            } else {
+                console.log('⚠️ Данные не возвращены, но ошибки нет');
+                // Обновляем данные вручную
+                const userData = await getUserData(user.id);
+                if (userData) {
+                    currentUserData = userData;
+                }
+            }
+            
+            // Проверяем, требуется ли пароль
+            if (currentUserData.account_password) {
+                console.log('🔐 Требуется пароль для существующего аккаунта');
+                regBtn.textContent = '✅ Данные обновлены!';
+                
+                setTimeout(() => {
+                    showPasswordLogin(currentUserData);
+                }, 1000);
+                return;
+            } else {
+                // Входим без пароля
+                regBtn.textContent = '✅ Регистрация успешна!';
+                setTimeout(() => {
+                    showMainApp();
+                }, 1000);
+                return;
+            }
+        }
+        
+        // Если пользователь не существует, создаем нового
         const userData = {
             telegram_id: user.id,
             first_name: user.first_name || '',
@@ -227,33 +283,48 @@ async function completeRegistration() {
             updated_at: new Date().toISOString()
         };
         
-        console.log('📝 Регистрируем пользователя:', userData);
+        console.log('📝 Создаем нового пользователя:', userData);
         
         const { data, error } = await supabase
             .from('users')
             .insert([userData])
-            .select()
-            .single();
+            .select();
             
         if (error) {
             console.error('❌ Ошибка регистрации:', error);
             
-            // Если пользователь уже существует (дубликат)
+            // Если пользователь уже существует (дубликат) - повторная проверка
             if (error.code === '23505') {
                 console.log('ℹ️ Пользователь уже зарегистрирован, загружаем данные...');
-                const existingUser = await getUserData(user.id);
-                if (existingUser) {
-                    currentUserData = existingUser;
-                    showMainApp();
+                const existingUserData = await getUserData(user.id);
+                if (existingUserData) {
+                    currentUserData = existingUserData;
+                    
+                    // Проверяем пароль
+                    if (currentUserData.account_password) {
+                        showPasswordLogin(currentUserData);
+                    } else {
+                        showMainApp();
+                    }
                     return;
                 }
             }
             
             throw error;
         }
-        
-        console.log('✅ Пользователь успешно зарегистрирован:', data);
-        currentUserData = data;
+
+        // Вручную берем первый элемент
+        if (data && data.length > 0) {
+            console.log('✅ Пользователь успешно зарегистрирован:', data[0]);
+            currentUserData = data[0];
+        } else {
+            console.log('⚠️ Данные не возвращены, но ошибки нет');
+            // Получаем данные вручную
+            const userData = await getUserData(user.id);
+            if (userData) {
+                currentUserData = userData;
+            }
+        }
         
         // Показываем анимацию успеха
         regBtn.textContent = '✅ Регистрация успешна!';
@@ -271,16 +342,17 @@ async function completeRegistration() {
     }
 }
 
-// Получение данных пользователя
+// Получение данных пользователя (ОБНОВЛЕННАЯ)
 async function getUserData(telegramId) {
     try {
         console.log('🔍 Ищем пользователя с ID:', telegramId);
         
+        // Убираем .single() и используем .maybeSingle() или обрабатываем массив
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('telegram_id', telegramId)
-            .single();
+            .limit(1); // Используем limit вместо single
             
         if (error) {
             if (error.code === 'PGRST116') {
@@ -291,8 +363,15 @@ async function getUserData(telegramId) {
             return null;
         }
         
-        console.log('✅ Пользователь найден:', data);
-        return data;
+        // Возвращаем первый элемент массива или null
+        if (data && data.length > 0) {
+            console.log('✅ Пользователь найден:', data[0]);
+            return data[0];
+        } else {
+            console.log('❌ Пользователь не найден');
+            return null;
+        }
+        
     } catch (error) {
         console.error('❌ Ошибка в getUserData:', error);
         return null;
@@ -446,12 +525,12 @@ async function saveProfileSettings() {
         
         console.log('📤 Отправляем данные в Supabase:', updateData);
         
+        // Убираем .single() чтобы избежать ошибки JSON object
         const { data, error } = await supabase
             .from('users')
             .update(updateData)
             .eq('telegram_id', user.id)
-            .select()
-            .single();
+            .select(); // Убрали .single()
             
         if (error) {
             console.error('❌ Ошибка сохранения настроек:', error);
@@ -459,9 +538,17 @@ async function saveProfileSettings() {
             return;
         }
         
-        console.log('✅ Настройки сохранены:', data);
-        currentUserData = data;
-        showNotification('✅ Настройки профиля сохранены!');
+        // Вручную берем первый элемент из массива
+        if (data && data.length > 0) {
+            console.log('✅ Настройки сохранены:', data[0]);
+            currentUserData = data[0];
+            showNotification('✅ Настройки профиля сохранены!');
+        } else {
+            console.log('⚠️ Данные не возвращены, но ошибки нет');
+            showNotification('✅ Настройки профиля сохранены!');
+            // Обновляем данные вручную
+            await refreshProfile();
+        }
         
     } catch (error) {
         console.error('❌ Ошибка при сохранении настроек:', error);
@@ -492,6 +579,7 @@ async function setAccountPassword() {
     try {
         console.log('🔐 Устанавливаем пароль для пользователя:', user.id);
         
+        // Убираем .single() чтобы избежать ошибки JSON object
         const { data, error } = await supabase
             .from('users')
             .update({
@@ -499,8 +587,7 @@ async function setAccountPassword() {
                 updated_at: new Date().toISOString()
             })
             .eq('telegram_id', user.id)
-            .select()
-            .single();
+            .select(); // Убрали .single()
             
         if (error) {
             console.error('❌ Ошибка установки пароля:', error);
@@ -508,8 +595,15 @@ async function setAccountPassword() {
             return;
         }
         
-        console.log('✅ Пароль установлен:', data);
-        currentUserData = data;
+        // Вручную берем первый элемент из массива
+        if (data && data.length > 0) {
+            console.log('✅ Пароль установлен:', data[0]);
+            currentUserData = data[0];
+        } else {
+            console.log('⚠️ Данные не возвращены, но ошибки нет');
+            // Обновляем данные вручную
+            await refreshProfile();
+        }
         
         // Очищаем поля
         document.getElementById('accountPassword').value = '';
@@ -602,6 +696,16 @@ function closePasswordModal() {
 function cancelLogin() {
     closePasswordModal();
     showNotification('Вход отменен');
+    
+    // После отмены входа показываем экран регистрации снова
+    // но сохраняем уже выбранный класс если он был
+    showRegistrationScreen();
+    
+    // Восстанавливаем выбранный класс если он был
+    if (selectedClass) {
+        updateClassButtons();
+        updateRegistrationButton();
+    }
 }
 
 // ИСПРАВЛЕННАЯ функция выхода
@@ -889,22 +993,23 @@ async function saveNote() {
                 .from('notes')
                 .update(noteData)
                 .eq('id', currentEditingNote.id)
-                .select()
-                .single();
+                .select();
                 
             if (error) {
                 console.error('Ошибка обновления заметки:', error);
                 throw new Error(`Не удалось обновить заметку: ${error.message}`);
             }
-            result = data;
+
+            if (data && data.length > 0) {
+                result = data[0];
+            }
             
         } else {
             // Создание новой заметки
             const { data, error } = await supabase
                 .from('notes')
                 .insert([noteData])
-                .select()
-                .single();
+                .select();
                 
             if (error) {
                 console.error('Ошибка создания заметки:', error);
@@ -917,7 +1022,10 @@ async function saveNote() {
                 
                 throw new Error(`Не удалось создать заметку: ${error.message}`);
             }
-            result = data;
+
+            if (data && data.length > 0) {
+                result = data[0];
+            }
         }
         
         showNotification(currentEditingNote ? 'Заметка обновлена!' : 'Заметка создана!');
@@ -1105,6 +1213,16 @@ function showSettings() {
     showNotification('Настройки будут доступны в следующем обновлении');
 }
 
+// Функция сброса состояния регистрации
+function resetRegistrationState() {
+    selectedClass = null;
+    const classButtons = document.querySelectorAll('.class-btn');
+    classButtons.forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    updateRegistrationButton();
+}
+
 // ==============================
 // ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
 // ==============================
@@ -1118,6 +1236,7 @@ window.editProfile = editProfile;
 window.showSettings = showSettings;
 window.logout = logout;
 window.createNewNote = createNewNote;
+window.resetRegistrationState = resetRegistrationState;
 
 // Функции заметок
 window.showNoteModal = showNoteModal;
