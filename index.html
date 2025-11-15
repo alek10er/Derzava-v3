@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Derzava CDZ - Учебный портал</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <!-- Экран регистрации -->
+    <div class="registration-screen" id="registrationScreen">
+        <div class="registration-container">
+            <div class="registration-header">
+                <h1>Derzava CDZ</h1>
+                <p>Учебный портал с ИИ-помощником</p>
+            </div>
+            
+            <div class="user-welcome">
+                <div class="user-avatar-large">
+                    <img src="" alt="Avatar" id="regUserAvatar" onerror="this.style.display='none'">
+                    <div class="avatar-placeholder-large" id="regAvatarPlaceholder">
+                        <i class='bx bx-user'></i>
+                    </div>
+                </div>
+                <h2 id="regWelcomeText">Добро пожаловать!</h2>
+                <p class="user-tg-info" id="userTgInfo"></p>
+            </div>
+
+            <div class="class-selection">
+                <h3>Выберите ваш класс:</h3>
+                <div class="class-buttons">
+                    <button class="class-btn" onclick="selectClass('9а')">9А класс</button>
+                    <button class="class-btn" onclick="selectClass('9и2')">9И2 класс</button>
+                    <button class="class-btn" onclick="selectClass('10а')">10А класс</button>
+                    <button class="class-btn" onclick="selectClass('10б')">10Б класс</button>
+                    <button class="class-btn" onclick="selectClass('11а')">11А класс</button>
+                    <button class="class-btn" onclick="selectClass('11б')">11Б класс</button>
+                </div>
+            </div>
+
+            <button class="complete-registration-btn" id="completeRegistrationBtn" onclick="completeRegistration()">
+                Завершить регистрацию
+            </button>
+
+            <div class="registration-footer">
+                <p>После регистрации откроется доступ ко всем функциям платформы</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Главное приложение (скрыто до регистрации) -->
+    <div class="app-container" id="appContainer" style="display: none;">
+        
+        <!-- Верхняя панель -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="logo">Derzava CDZ</h1>
+            </div>
+            <div class="header-right">
+                <div class="notification-bell" id="notificationBell">
+                    <i class='bx bx-bell'></i>
+                    <span class="notification-badge" id="notificationBadge">3</span>
+                </div>
+                <div class="user-avatar">
+                    <img src="" alt="Avatar" id="userAvatar" onerror="this.style.display='none'">
+                    <div class="avatar-placeholder" id="avatarPlaceholder">
+                        <i class='bx bx-user'></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Уведомления (скрыто по умолчанию) -->
+        <div class="notifications-panel" id="notificationsPanel">
+            <div class="notifications-header">
+                <h3>Уведомления</h3>
+                <button class="close-notifications" onclick="closeNotifications()">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            <div class="notifications-list">
+                <div class="notification-item new">
+                    <i class='bx bx-calendar-check'></i>
+                    <div class="notification-content">
+                        <p>Новое расписание на неделю</p>
+                        <span>5 минут назад</span>
+                    </div>
+                </div>
+                <div class="notification-item new">
+                    <i class='bx bx-message-dots'></i>
+                    <div class="notification-content">
+                        <p>У вас новое сообщение в чате</p>
+                        <span>10 минут назад</span>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <i class='bx bx-task'></i>
+                    <div class="notification-content">
+                        <p>Завтра контрольная по математике</p>
+                        <span>1 час назад</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            
+            <!-- Приветствие пользователя -->
+            <section class="welcome-section">
+                <h2 id="welcomeText">Добро пожаловать!</h2>
+                <p class="user-class" id="userClass"></p>
+            </section>
+
+            <!-- Навигационные карточки -->
+            <section class="nav-cards">
+                <div class="nav-card" onclick="showSection('news')">
+                    <div class="card-icon news">
+                        <i class='bx bx-news'></i>
+                    </div>
+                    <h3>Новости</h3>
+                    <p>Последние обновления</p>
+                </div>
+
+                <div class="nav-card" onclick="showSection('schedule')">
+                    <div class="card-icon schedule">
+                        <i class='bx bx-calendar'></i>
+                    </div>
+                    <h3>Расписание</h3>
+                    <p>Уроки и занятия</p>
+                </div>
+
+                <div class="nav-card" onclick="showSection('ai')">
+                    <div class="card-icon ai">
+                        <i class='bx bx-brain'></i>
+                    </div>
+                    <h3>Держава ИИ</h3>
+                    <p>Умный помощник</p>
+                </div>
+
+                <div class="nav-card" onclick="showSection('messenger')">
+                    <div class="card-icon messenger">
+                        <i class='bx bx-message-dots'></i>
+                    </div>
+                    <h3>Месенджер</h3>
+                    <p>Общение с классом</p>
+                </div>
+
+                <div class="nav-card" onclick="showSection('notes')">
+                    <div class="card-icon notes">
+                        <i class='bx bx-note'></i>
+                    </div>
+                    <h3>Заметки</h3>
+                    <p>Личные записи</p>
+                </div>
+
+                <div class="nav-card" onclick="showSection('profile')">
+                    <div class="card-icon profile">
+                        <i class='bx bx-user'></i>
+                    </div>
+                    <h3>Профиль</h3>
+                    <p>Настройки аккаунта</p>
+                </div>
+            </section>
+
+            <!-- Контент секций -->
+            <section class="content-section" id="contentSection">
+                <!-- Новости (отображается по умолчанию) -->
+                <div class="section-content active" id="news-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-news'></i> Новости школы</h2>
+                    </div>
+                    <div class="news-list">
+                        <div class="news-item">
+                            <div class="news-date">Сегодня</div>
+                            <h4>Запуск нового учебного портала</h4>
+                            <p>Мы рады представить вам обновленную платформу Derzava CDZ с ИИ-помощником и удобным дневником! Теперь все учебные материалы, расписание и общение в одном месте.</p>
+                        </div>
+                        <div class="news-item">
+                            <div class="news-date">Вчера</div>
+                            <h4>Школьные соревнования</h4>
+                            <p>На следующей неделе пройдут соревнования по баскетболу между классами. Записывайтесь у классных руководителей до пятницы.</p>
+                        </div>
+                        <div class="news-item">
+                            <div class="news-date">2 дня назад</div>
+                            <h4>Обновление расписания</h4>
+                            <p>Внесены изменения в расписание на следующую неделю. Проверьте раздел "Расписание" для ознакомления с актуальной информацией.</p>
+                        </div>
+                        <div class="news-item">
+                            <div class="news-date">3 дня назад</div>
+                            <h4>Встреча с выпускниками</h4>
+                            <p>В эту субботу состоится традиционная встреча с выпускниками школы. Приглашаются все желающие учащихся 9-11 классов.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Расписание -->
+                <div class="section-content" id="schedule-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-calendar'></i> Расписание</h2>
+                    </div>
+                    <div class="placeholder-content">
+                        <i class='bx bx-time-five'></i>
+                        <h3>Расписание загружается</h3>
+                        <p>Здесь скоро появится ваше расписание уроков</p>
+                        <div class="schedule-features">
+                            <div class="feature-item">
+                                <i class='bx bx-book'></i>
+                                <span>Ежедневное расписание</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-bell'></i>
+                                <span>Уведомления об уроках</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-edit'></i>
+                                <span>Домашние задания</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Держава ИИ -->
+                <div class="section-content" id="ai-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-brain'></i> Держава ИИ</h2>
+                    </div>
+                    <div class="placeholder-content">
+                        <i class='bx bx-robot'></i>
+                        <h3>ИИ-помощник</h3>
+                        <p>Ваш умный помощник в учебе скоро будет доступен</p>
+                        <div class="ai-features">
+                            <div class="feature-item">
+                                <i class='bx bx-book'></i>
+                                <span>Помощь с домашкой</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-math'></i>
+                                <span>Решение задач</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class='bx bx-chat'></i>
+                                <span>Ответы на вопросы</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Месенджер -->
+                <div class="section-content" id="messenger-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-message-dots'></i> Месенджер</h2>
+                    </div>
+                    <div class="placeholder-content">
+                        <i class='bx bx-chat'></i>
+                        <h3>Чат с классом</h3>
+                        <p>Общайтесь с одноклассниками и учителями</p>
+                        <div class="chat-previews">
+                            <div class="chat-preview">
+                                <div class="chat-avatar">
+                                    <i class='bx bx-group'></i>
+                                </div>
+                                <div class="chat-info">
+                                    <h4>Общий чат 9А</h4>
+                                    <p>Мария: Кто сделал домашку по физике?</p>
+                                </div>
+                            </div>
+                            <div class="chat-preview">
+                                <div class="chat-avatar">
+                                    <i class='bx bx-user'></i>
+                                </div>
+                                <div class="chat-info">
+                                    <h4>Анна Петрова</h4>
+                                    <p>Привет! Как дела с проектом?</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Заметки -->
+                <div class="section-content" id="notes-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-note'></i> Заметки</h2>
+                        <button class="add-note-btn" onclick="showNoteModal()">
+                            <i class='bx bx-plus'></i>
+                            Новая заметка
+                        </button>
+                    </div>
+                    
+                    <div class="notes-controls">
+                        <div class="search-notes">
+                            <i class='bx bx-search'></i>
+                            <input type="text" id="notesSearch" placeholder="Поиск заметок..." oninput="searchNotes()">
+                        </div>
+                        <div class="notes-filter">
+                            <select id="notesCategoryFilter" onchange="filterNotes()">
+                                <option value="all">Все категории</option>
+                                <option value="general">Общие</option>
+                                <option value="school">Школа</option>
+                                <option value="homework">Домашние задания</option>
+                                <option value="personal">Личные</option>
+                                <option value="ideas">Идеи</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="notes-container" id="notesContainer">
+                        <!-- Заметки будут загружаться здесь -->
+                        <div class="notes-loading" id="notesLoading">
+                            <i class='bx bx-loader-circle bx-spin'></i>
+                            <p>Загружаем ваши заметки...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Профиль -->
+                <div class="section-content" id="profile-content">
+                    <div class="section-header">
+                        <h2><i class='bx bx-user'></i> Профиль</h2>
+                    </div>
+                    
+                    <!-- Основная информация -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-info-circle'></i> Основная информация</h3>
+                        <div class="profile-info">
+                            <div class="info-item">
+                                <label>Telegram ID:</label>
+                                <span id="profileTelegramId">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Имя:</label>
+                                <span id="profileFirstName">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Фамилия:</label>
+                                <span id="profileLastName">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Класс:</label>
+                                <span id="profileClass">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Username:</label>
+                                <span id="profileUsername">-</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Дата регистрации:</label>
+                                <span id="profileRegDate">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Настройки профиля для мессенджера -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-message-alt'></i> Настройки для мессенджера</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label for="displayName">Отображаемое имя</label>
+                                <input type="text" id="displayName" placeholder="Введите имя для отображения">
+                                <p class="form-hint">Это имя будут видеть другие пользователи в мессенджере</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="displayBio">Описание профиля</label>
+                                <textarea id="displayBio" placeholder="Расскажите о себе..." rows="3"></textarea>
+                                <p class="form-hint">Краткое описание, которое увидят другие пользователи</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="nicknameColor">Цвет ника</label>
+                                <div class="color-picker-small">
+                                    <div class="color-option-small selected" data-color="#667eea" style="background: #667eea;" onclick="selectNicknameColor('#667eea')"></div>
+                                    <div class="color-option-small" data-color="#4facfe" style="background: #4facfe;" onclick="selectNicknameColor('#4facfe')"></div>
+                                    <div class="color-option-small" data-color="#43e97b" style="background: #43e97b;" onclick="selectNicknameColor('#43e97b')"></div>
+                                    <div class="color-option-small" data-color="#fa709a" style="background: #fa709a;" onclick="selectNicknameColor('#fa709a')"></div>
+                                    <div class="color-option-small" data-color="#ffd166" style="background: #ffd166;" onclick="selectNicknameColor('#ffd166')"></div>
+                                    <div class="color-option-small" data-color="#ffffff" style="background: #ffffff; border: 1px solid var(--border);" onclick="selectNicknameColor('#ffffff')"></div>
+                                </div>
+                                <input type="hidden" id="nicknameColor" value="#667eea">
+                            </div>
+                            
+                            <button class="btn-primary" onclick="saveProfileSettings()">
+                                <i class='bx bx-save'></i>
+                                Сохранить настройки
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Безопасность -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-shield-alt'></i> Безопасность</h3>
+                        <div class="security-settings">
+                            <div class="form-group">
+                                <label for="accountPassword">Пароль для входа</label>
+                                <input type="password" id="accountPassword" placeholder="Введите пароль">
+                                <p class="form-hint">Дополнительный пароль для входа в аккаунт</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Подтвердите пароль</label>
+                                <input type="password" id="confirmPassword" placeholder="Повторите пароль">
+                            </div>
+                            <button class="btn-primary" onclick="setAccountPassword()">
+                                <i class='bx bx-lock'></i>
+                                Установить пароль
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Действия -->
+                    <div class="profile-section">
+                        <h3><i class='bx bx-cog'></i> Действия</h3>
+                        <div class="profile-actions">
+                            <button class="profile-btn primary" onclick="refreshProfile()">
+                                <i class='bx bx-refresh'></i>
+                                Обновить данные
+                            </button>
+                            <button class="profile-btn secondary" onclick="exportData()">
+                                <i class='bx bx-export'></i>
+                                Экспорт данных
+                            </button>
+                            <button class="profile-btn logout" onclick="logout()">
+                                <i class='bx bx-log-out'></i>
+                                Выйти
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Модальное окно создания/редактирования заметки -->
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="noteModalTitle">Новая заметка</h3>
+                <button class="close-modal" onclick="closeNoteModal()">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="noteTitle">Заголовок</label>
+                    <input type="text" id="noteTitle" placeholder="Введите заголовок..." maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="noteContent">Содержание</label>
+                    <textarea id="noteContent" placeholder="Напишите вашу заметку..." rows="6"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="noteCategory">Категория</label>
+                        <select id="noteCategory">
+                            <option value="general">Общие</option>
+                            <option value="school">Школа</option>
+                            <option value="homework">Домашние задания</option>
+                            <option value="personal">Личные</option>
+                            <option value="ideas">Идеи</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="noteColor">Цвет</label>
+                        <div class="color-picker">
+                            <div class="color-option selected" data-color="#667eea" style="background: #667eea;" onclick="selectColor('#667eea')"></div>
+                            <div class="color-option" data-color="#4facfe" style="background: #4facfe;" onclick="selectColor('#4facfe')"></div>
+                            <div class="color-option" data-color="#43e97b" style="background: #43e97b;" onclick="selectColor('#43e97b')"></div>
+                            <div class="color-option" data-color="#fa709a" style="background: #fa709a;" onclick="selectColor('#fa709a')"></div>
+                            <div class="color-option" data-color="#ffd166" style="background: #ffd166;" onclick="selectColor('#ffd166')"></div>
+                        </div>
+                        <input type="hidden" id="noteColor" value="#667eea">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="notePinned">
+                        <span class="checkmark"></span>
+                        Закрепить заметку
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeNoteModal()">Отмена</button>
+                <button class="btn-primary" id="saveNoteBtn" onclick="saveNote()">Сохранить заметку</button>
+                <button class="btn-danger" id="deleteNoteBtn" onclick="deleteNote()" style="display: none;">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа с паролем -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class='bx bx-lock-alt'></i> Вход в аккаунт</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="loginPassword">Пароль аккаунта</label>
+                    <input type="password" id="loginPassword" placeholder="Введите ваш пароль">
+                    <p class="form-hint">Для этого аккаунта установлен дополнительный пароль</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="cancelLogin()">Отмена</button>
+                <button class="btn-primary" onclick="verifyPassword()">Войти</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
